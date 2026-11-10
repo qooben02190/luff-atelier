@@ -128,7 +128,6 @@ input:focus,textarea:focus{outline:2px solid var(--blue-soft);border-color:var(-
 /* ===== 風格 B：藍橘主色 ===== */
 :root{--line:#eee3d6}
 h2{display:flex;align-items:center;gap:10px;font-weight:600;font-size:22px;letter-spacing:.02em}
-h2.plain::before{display:none}
 h2::before{content:"";flex-shrink:0;width:14px;height:18px;border-radius:50%;background:var(--blue);transform:rotate(-20deg);box-shadow:8px -3px 0 -1px var(--orange)}
 .monthnav strong{font-weight:600;font-size:18px}
 .sheet h3,.cus-name{font-weight:600}
@@ -243,7 +242,7 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
     </section>
 
     <section id="view-customers" class="hidden">
-      <h2 class="plain">搜尋客人</h2>
+      <h2>搜尋客人</h2>
       <div id="cus-search-wrap">
         <div class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
@@ -324,7 +323,7 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-11.2';
+const APP_VERSION = '2026-11-11.3';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
