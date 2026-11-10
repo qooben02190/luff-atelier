@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Luff atelier</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Luff atelier">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f9f4f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root{
+  --bg:#f9f4f0;--card:#fffdfa;--text:#1d1b19;--muted:#8b8378;--line:#e9e1d7;
+  --blue:#2a5bd7;--blue-soft:#e4ebfb;--orange:#e5804a;--orange-soft:#fbe9dd;
+  --serif:"Cormorant Garamond","Songti TC","Noto Serif TC",Georgia,serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#171614;--card:#211f1c;--text:#f1ece4;--muted:#9d968b;--line:#34312c;
+  --blue:#7193f2;--blue-soft:#232f4c;--orange:#f0965f;--orange-soft:#3b2a20;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;font-size:16px;-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+button{font-family:inherit;color:inherit}
+
+/* 頂部 */
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--serif);font-size:22px;letter-spacing:.02em;font-style:italic}
+.brand small{font-style:normal;font-size:13px;letter-spacing:.25em;margin-left:6px;color:var(--muted)}
+.icon-btn{border:0;background:none;padding:6px;border-radius:999px;color:var(--muted);display:flex}
+.icon-btn svg{width:22px;height:22px}
+.icon-btn.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 內容 */
+main{padding:16px 16px calc(env(safe-area-inset-bottom) + 92px);max-width:560px;margin:0 auto}
+h2{font-family:var(--serif);font-weight:500;font-size:24px;margin:4px 2px 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.lbl{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+input,textarea{display:block;width:100%;max-width:100%;min-width:0;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font-family:inherit}
+input[type=date]{-webkit-appearance:none;appearance:none;height:46px;line-height:22px;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
+input:focus,textarea:focus{outline:2px solid var(--blue-soft);border-color:var(--blue)}
+.field{margin-bottom:16px}.field:last-child{margin-bottom:0}
+/* 選項：整齊的四欄格子 */
+.chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.chip{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:10px 3px;font-size:14px;line-height:1.2;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.long{font-size:12px;letter-spacing:-.02em}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.chip.add{border-style:dashed;color:var(--muted)}
+.suggest{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+.sug{text-align:left;border:1px solid var(--line);background:var(--blue-soft);border-radius:12px;padding:9px 12px;font-size:15px}
+.sug small{color:var(--muted);font-size:12px}
+.submit{width:100%;padding:15px;font-size:17px;font-weight:600;border:0;border-radius:14px;background:var(--text);color:var(--bg)}
+.submit:disabled{opacity:.5}
+
+.rec .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.rec .meta{color:var(--muted);font-size:13px;margin-top:4px}
+.rec .note{font-size:14px;margin-top:6px}
+.empty{color:var(--muted);text-align:center;padding:32px}
+
+.monthnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.monthnav strong{font-family:var(--serif);font-weight:500;font-size:22px}
+.btn2{border:1px solid var(--line);background:var(--card);border-radius:999px}
+.monthnav .btn2{font-size:20px;line-height:1;padding:6px 16px}
+.btn2.small{padding:5px 12px;font-size:13px}
+.stats2{display:flex;gap:12px}.stats2>.card{flex:1;min-width:0}
+.stat .big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+#st-total{color:var(--orange)}
+.tgt{margin-top:16px}
+.tgt .row1{display:flex;justify-content:space-between;gap:8px;font-size:14px;margin-bottom:6px}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--blue);border-radius:4px}
+.tgt .sub{font-size:13px;color:var(--muted);margin-top:5px}
+.tgt .sub strong{color:var(--orange)}
+.fc{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.fc .row1{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--text);font-size:14px;margin-bottom:4px}
+.logout{display:block;margin:24px auto 0;border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline}
+
+/* 底部分頁列 */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srgb,var(--bg) 92%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;padding:6px 8px calc(env(safe-area-inset-bottom) + 6px)}
+.tab{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11px;color:var(--muted)}
+.tab svg{width:24px;height:24px}
+.tab.active{color:var(--blue)}
+
+/* 登入 */
+#login{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px calc(env(safe-area-inset-bottom) + 32px);gap:18px}
+#login img{width:min(78vw,320px);border-radius:20px}
+#login form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px}
+#login p{margin:0;font-size:13px;color:var(--muted);text-align:center;min-height:1.4em}
+#login p.err{color:#c4452e}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;z-index:10}
+.toast.show{opacity:1}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- 登入畫面 -->
+<section id="login" class="hidden">
+  <img src="logo.jpg" alt="Luff atelier">
+  <form id="login-form">
+    <input type="password" id="pw" placeholder="工作室密碼" autocomplete="current-password" enterkeyhint="go">
+    <button class="submit" id="login-btn">進入</button>
+    <p id="login-msg"></p>
+  </form>
+</section>
+
+<!-- 主畫面 -->
+<div id="app" class="hidden">
+  <header>
+    <div class="brand">Luff<small>atelier.</small></div>
+    <button class="icon-btn" id="refresh" aria-label="重新整理">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <section id="view-form">
+      <h2>新增紀錄</h2>
+      <div class="card">
+        <div class="field"><label class="lbl" for="date">日期</label><input type="date" id="date"></div>
+        <div class="field">
+          <label class="lbl" for="name">客人姓名 *</label>
+          <input id="name" autocomplete="off" placeholder="輸入姓名可找舊客">
+          <div id="suggest" class="suggest"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field"><span class="lbl">項目（可複選，長按可刪除）</span><div class="chips" id="chips-items">載入中…</div></div>
+        <div class="field"><span class="lbl">款式（可複選，長按可刪除）</span><div class="chips" id="chips-styles"></div></div>
+      </div>
+      <div class="card">
+        <div class="field"><label class="lbl" for="amount">金額 *</label><input type="number" id="amount" inputmode="numeric" min="0" placeholder="0"></div>
+        <div class="field"><span class="lbl">付款方式</span><div class="chips" id="chips-payment"></div></div>
+        <div class="field"><label class="lbl" for="note">備註</label><textarea id="note" rows="3"></textarea></div>
+      </div>
+      <button class="submit" id="submit">儲存紀錄</button>
+    </section>
+
+    <section id="view-recent" class="hidden">
+      <h2>最近紀錄</h2>
+      <div id="recent"></div>
+    </section>
+
+    <section id="view-stats" class="hidden">
+      <div class="monthnav">
+        <button type="button" class="btn2" id="prev-month" aria-label="上個月">‹</button>
+        <strong id="month-label"></strong>
+        <button type="button" class="btn2" id="next-month" aria-label="下個月">›</button>
+      </div>
+      <div class="card stat"><div class="lbl">總金額</div><div class="big" id="st-total">$0</div></div>
+      <div class="stats2">
+        <div class="card stat"><div class="lbl">人次</div><div class="big" id="st-count">0</div></div>
+        <div class="card stat"><div class="lbl">客單價平均</div><div class="big" id="st-avg">$0</div></div>
+      </div>
+      <div class="card hidden" id="targets"></div>
+      <button class="logout" id="logout">登出這支手機</button>
+    </section>
+  </main>
+
+  <nav>
+    <button class="tab active" data-tab="form">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>新增
+    </button>
+    <button class="tab" data-tab="recent">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>紀錄
+    </button>
+    <button class="tab" data-tab="stats">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>統計
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
+
+const TYPES = { items: '項目', styles: '款式', payment: '付款方式' };
+const MULTI = { items: true, styles: true, payment: false };
+const state = { options: {}, usage: {}, customers: [], recent: [], monthly: {}, targets: { list: [], booked: 0 }, today: '', month: '', sel: { items: new Set(), styles: new Set(), payment: new Set() } };
+const $ = id => document.getElementById(id);
+
+/* ----- 手機端儲存（登入憑證、上次資料，讓開啟更快） ----- */
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/* ----- 呼叫後端 ----- */
+async function api(action, payload) {
+  const body = Object.assign({ action: action, token: store.get('luff_token') || '' }, payload || {});
+  let res;
+  try {
+    // 用純文字送出，避免瀏覽器多做一次跨網域預檢
+    res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+  } catch (e) {
+    throw new Error('連不上網路，請稍後再試');
+  }
+  let json;
+  try { json = await res.json(); } catch (e) { throw new Error('伺服器回應異常，請確認後端已部署成「任何人」可存取'); }
+  if (!json.ok) {
+    if (json.error === 'UNAUTHORIZED') { showLogin('密碼已更改，請重新輸入'); throw new Error('請重新登入'); }
+    throw new Error(json.error || '發生錯誤');
+  }
+  return json.data;
+}
+
+/* ----- 登入 ----- */
+function showLogin(msg) {
+  store.del('luff_token');
+  store.del('luff_cache');
+  $('app').classList.add('hidden');
+  $('login').classList.remove('hidden');
+  const p = $('login-msg');
+  p.textContent = msg || '';
+  p.classList.toggle('err', !!msg);
+}
+$('login-form').onsubmit = async e => {
+  e.preventDefault();
+  const pw = $('pw').value;
+  if (!pw) return;
+  const btn = $('login-btn');
+  btn.disabled = true;
+  btn.textContent = '確認中…';
+  try {
+    const d = await api('login', { password: pw });
+    store.set('luff_token', d.token);
+    $('pw').value = '';
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    await load();
+  } catch (err) {
+    $('login-msg').textContent = err.message;
+    $('login-msg').classList.add('err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '進入';
+  }
+};
+$('logout').onclick = () => {
+  if (confirm('要登出這支手機嗎？之後要重新輸入密碼。')) showLogin('');
+};
+
+/* ----- 載入資料 ----- */
+async function load() {
+  const btn = $('refresh');
+  btn.classList.add('spin');
+  try {
+    const d = await api('init');
+    store.set('luff_cache', JSON.stringify(d));
+    applyData(d);
+  } catch (e) {
+    if (e.message !== '請重新登入') toast('載入失敗：' + e.message);
+  } finally {
+    btn.classList.remove('spin');
+  }
+}
+$('refresh').onclick = load;
+
+function applyData(d) {
+  state.options = d.options || {};
+  state.usage = d.usage || {};
+  state.sortCache = {};
+  state.customers = d.customers || [];
+  state.recent = d.recent || [];
+  state.monthly = d.monthly || {};
+  state.targets = d.targets || { list: [], booked: 0 };
+  state.today = todayStr();
+  if (!state.month) state.month = state.today.slice(0, 7);
+  if (!$('date').value) $('date').value = state.today;
+  Object.keys(TYPES).forEach(renderChips);
+  renderRecent();
+  renderStats();
+}
+
+/* ----- 選單 ----- */
+function renderChips(key) {
+  const box = $('chips-' + key);
+  const sel = state.sel[key];
+  const list = sortByUsage(TYPES[key], state.options[TYPES[key]] || []);
+  box.innerHTML = list.map(v =>
+    `<button type="button" class="chip${sel.has(v) ? ' on' : ''}${labelWidth(v) > 6 ? ' long' : ''}" data-v="${esc(v)}">${esc(v)}</button>`
+  ).join('') + '<button type="button" class="chip add">＋ 新增</button>';
+  box.querySelector('.chip.add').onclick = () => addOption(key);
+  box.querySelectorAll('.chip:not(.add)').forEach(b => {
+    // 短按 = 選取；長按 0.6 秒 = 刪除選項
+    let timer = null, longPressed = false;
+    const start = () => {
+      longPressed = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => { longPressed = true; removeOption(key, b.dataset.v); }, 600);
+    };
+    const cancel = () => clearTimeout(timer);
+    b.addEventListener('pointerdown', start);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, cancel));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    b.onclick = () => {
+      if (longPressed) { longPressed = false; return; }
+      toggle(key, b.dataset.v);
+    };
+  });
+}
+/* 字比較多的按鈕用小一點的字（中文算 2、英數算 1） */
+function labelWidth(s) {
+  return [...String(s)].reduce((n, ch) => n + (ch.charCodeAt(0) > 255 ? 2 : 1), 0);
+}
+/* 常用的排前面：用過次數多的在左邊，次數相同時照選單設定的順序 */
+function usageCount(type, v) {
+  const u = state.usage[type] || {};
+  let n = u[v] || 0;
+  // 匯入的舊紀錄是手寫文字（以 ~ 開頭），用「包含」比對
+  Object.keys(u).forEach(k => { if (k[0] === '~' && k.toLowerCase().includes(v.toLowerCase())) n += u[k]; });
+  return n;
+}
+function sortByUsage(type, list) {
+  if (!state.sortCache) state.sortCache = {};
+  const key = type + '|' + list.join('|');
+  if (!state.sortCache[key]) {
+    state.sortCache[key] = list
+      .map((v, i) => ({ v: v, i: i, n: usageCount(type, v) }))
+      .sort((a, b) => b.n - a.n || a.i - b.i)
+      .map(x => x.v);
+  }
+  return state.sortCache[key];
+}
+function toggle(key, v) {
+  const sel = state.sel[key];
+  if (MULTI[key]) {
+    sel.has(v) ? sel.delete(v) : sel.add(v);
+  } else {
+    const had = sel.has(v);
+    sel.clear();
+    if (!had) sel.add(v);
+  }
+  renderChips(key);
+}
+async function addOption(key) {
+  const v = (prompt('新增' + TYPES[key]) || '').trim();
+  if (!v) return;
+  try {
+    state.options = (await api('addOption', { type: TYPES[key], value: v })).options;
+    if (!MULTI[key]) state.sel[key].clear();
+    state.sel[key].add(v);
+    renderChips(key);
+    toast('已新增「' + v + '」');
+  } catch (e) {
+    toast('新增失敗：' + e.message);
+  }
+}
+async function removeOption(key, v) {
+  if (!confirm('要從選單刪除「' + v + '」嗎？\n已存的紀錄不會受影響。')) return;
+  try {
+    state.options = (await api('removeOption', { type: TYPES[key], value: v })).options;
+    state.sel[key].delete(v);
+    renderChips(key);
+    toast('已刪除「' + v + '」');
+  } catch (e) {
+    toast('刪除失敗：' + e.message);
+  }
+}
+
+/* ----- 舊客建議 ----- */
+function renderSuggest() {
+  const box = $('suggest');
+  const q = $('name').value.trim().toLowerCase();
+  if (!q) { box.innerHTML = ''; return; }
+  const m = state.customers
+    .filter(c => c.name.toLowerCase().includes(q) && c.name !== $('name').value.trim())
+    .slice(0, 5);
+  box.innerHTML = m.map((c, i) =>
+    `<button type="button" class="sug" data-i="${i}">${esc(c.name)}<br>` +
+    `<small>來店 ${c.count} 次 · 最近 ${esc(c.last)} · 累計 $${c.total.toLocaleString()}</small></button>`
+  ).join('');
+  box.querySelectorAll('.sug').forEach(b => {
+    b.onclick = () => { $('name').value = m[b.dataset.i].name; box.innerHTML = ''; };
+  });
+}
+$('name').addEventListener('input', renderSuggest);
+
+/* ----- 最近紀錄 ----- */
+function renderRecent() {
+  const box = $('recent');
+  if (!state.recent.length) { box.innerHTML = '<div class="empty">還沒有紀錄</div>'; return; }
+  box.innerHTML = state.recent.map(r => `
+    <div class="card rec">
+      <div class="top"><span>${esc(r.name)}</span><span>$${Number(r.amount || 0).toLocaleString()}</span></div>
+      <div class="meta">${esc(r.date)} · ${esc(r.payment || '未填付款方式')}</div>
+      <div class="meta">${esc([r.items, r.styles].filter(Boolean).join(' ／ '))}</div>
+      ${r.note ? `<div class="note">${esc(r.note)}</div>` : ''}
+    </div>`).join('');
+}
+
+/* ----- 月統計與目標 ----- */
+function renderStats() {
+  const [y, m] = state.month.split('-').map(Number);
+  const s = state.monthly[state.month] || { total: 0, count: 0 };
+  const avg = s.count ? Math.round(s.total / s.count) : 0;
+  $('month-label').textContent = y + ' 年 ' + m + ' 月';
+  $('st-total').textContent = '$' + s.total.toLocaleString();
+  $('st-count').textContent = s.count.toLocaleString();
+  $('st-avg').textContent = '$' + avg.toLocaleString();
+  renderTargets(s);
+}
+function daysLeft(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const [ty, tm, td] = state.today.split('-').map(Number);
+  const today = new Date(ty, tm - 1, td);
+  const first = new Date(y, m - 1, 1);
+  const last = new Date(y, m, 0);
+  if (today > last) return 0;
+  if (today < first) return last.getDate();
+  return last.getDate() - td;   // 跟儀表板算法一樣，不含今天
+}
+function renderTargets(s) {
+  const box = $('targets');
+  const t = state.targets;
+  if (!t.list.length) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const left = daysLeft(state.month);
+  const isThisMonth = state.month === state.today.slice(0, 7);
+  const avg = s.count ? s.total / s.count : 0;
+  const forecastTotal = s.total + t.booked * avg;
+
+  let html = `<div class="lbl">目標進度${left ? '・這個月還剩 ' + left + ' 天' : ''}</div>`;
+  html += t.list.map(g => {
+    const pct = s.total / g.amount;
+    const gap = Math.max(0, g.amount - s.total);
+    const daily = left && gap ? Math.round(gap / left) : 0;
+    let fc = '';
+    if (isThisMonth && gap) {
+      const fPct = forecastTotal / g.amount;
+      const fGap = Math.max(0, g.amount - forecastTotal);
+      const need = avg ? Math.ceil(fGap / avg) : 0;
+      fc = `<div class="sub">照預約預估 ${(fPct * 100).toFixed(0)}%` +
+        (fGap ? `，還要再約 <strong>${need}</strong> 位` : '，可以達成') + '</div>';
+    }
+    return `<div class="tgt">
+      <div class="row1"><span>${esc(g.name)}　$${g.amount.toLocaleString()}</span><strong>${(pct * 100).toFixed(1)}%</strong></div>
+      <div class="bar"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
+      <div class="sub">${gap ? '還差 $' + gap.toLocaleString() + (daily ? '・每天平均需 $' + daily.toLocaleString() : '') : '已達成'}</div>
+      ${fc}
+    </div>`;
+  }).join('');
+  if (isThisMonth) {
+    html += `<div class="fc"><div class="row1"><span>預約中（已約未收費）<strong>${t.booked}</strong> 人</span>` +
+      `<button type="button" class="btn2 small" id="edit-booked">修改</button></div>` +
+      `<div>依目前客單價，預估月底約 $${Math.round(forecastTotal).toLocaleString()}</div></div>`;
+  }
+  box.innerHTML = html;
+  const btn = $('edit-booked');
+  if (btn) btn.onclick = editBooked;
+}
+async function editBooked() {
+  const v = prompt('這個月預約中（已約未收費）的客人數', String(state.targets.booked));
+  if (v === null) return;
+  const n = Number(v.trim());
+  if (!Number.isInteger(n) || n < 0) return toast('請輸入 0 以上的整數');
+  try {
+    const d = await api('setBooked', { value: n });
+    store.set('luff_cache', JSON.stringify(d));
+    applyData(d);
+    toast('已更新為 ' + n + ' 人');
+  } catch (e) {
+    toast('更新失敗：' + e.message);
+  }
+}
+function shiftMonth(n) {
+  const [y, m] = state.month.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  state.month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  renderStats();
+}
+$('prev-month').onclick = () => shiftMonth(-1);
+$('next-month').onclick = () => shiftMonth(1);
+
+/* ----- 儲存 ----- */
+$('submit').onclick = async () => {
+  const rec = {
+    date: $('date').value,
+    name: $('name').value.trim(),
+    items: [...state.sel.items],
+    styles: [...state.sel.styles],
+    amount: $('amount').value,
+    payment: [...state.sel.payment][0] || '',
+    note: $('note').value.trim()
+  };
+  if (!rec.date) return toast('請選日期');
+  if (!rec.name) return toast('請填客人姓名');
+  if (rec.amount === '' || Number(rec.amount) < 0) return toast('請填金額');
+
+  const btn = $('submit');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+  try {
+    const d = await api('save', { record: rec });
+    store.set('luff_cache', JSON.stringify(d));
+    applyData(d);
+    resetForm();
+    toast('已儲存');
+  } catch (e) {
+    toast('儲存失敗：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '儲存紀錄';
+  }
+};
+function resetForm() {
+  ['name', 'amount', 'note'].forEach(id => $(id).value = '');
+  Object.values(state.sel).forEach(s => s.clear());
+  Object.keys(TYPES).forEach(renderChips);
+  $('suggest').innerHTML = '';
+  window.scrollTo(0, 0);
+}
+
+/* ----- 分頁 ----- */
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
+  $('view-form').classList.toggle('hidden', name !== 'form');
+  $('view-recent').classList.toggle('hidden', name !== 'recent');
+  $('view-stats').classList.toggle('hidden', name !== 'stats');
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tab').forEach(t => { t.onclick = () => showTab(t.dataset.tab); });
+
+/* ----- 開啟時 ----- */
+(function start() {
+  if (!store.get('luff_token')) { showLogin(''); return; }
+  $('app').classList.remove('hidden');
+  // 先顯示上次的資料，背景再更新，打開比較快
+  const cached = store.get('luff_cache');
+  if (cached) { try { applyData(JSON.parse(cached)); } catch (e) {} }
+  load();
+})();
+// 從背景切回 App 時自動更新
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && store.get('luff_token')) load();
+});
+</script>
+</body>
+</html>
