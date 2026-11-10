@@ -64,6 +64,25 @@ input:focus,textarea:focus{outline:2px solid var(--blue-soft);border-color:var(-
 .rec .note{font-size:14px;margin-top:6px}
 .rec{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s,background .15s}
 .rec.pressing{transform:scale(.98);background:var(--blue-soft)}
+.search-box{position:relative}
+.search-box svg{position:absolute;left:14px;top:50%;width:20px;height:20px;transform:translateY(-50%);color:var(--muted)}
+.search-box input{padding-left:42px;height:48px;border-radius:14px;background:var(--card);box-shadow:0 1px 2px rgba(60,40,20,.05),0 6px 18px rgba(60,40,20,.05)}
+#cus-empty{margin-top:16px}
+.cus-hero{text-align:center;padding:28px 20px 24px}
+.blobs{position:relative;width:86px;height:70px;margin:0 auto 14px}
+.blobs i{position:absolute;border-radius:50%;opacity:.92}
+.blobs i:first-child{width:46px;height:60px;left:34px;top:0;background:var(--orange);transform:rotate(-12deg)}
+.blobs i:last-child{width:44px;height:56px;left:8px;top:14px;background:var(--blue);transform:rotate(-28deg)}
+.hero-title{margin:0;font-size:18px;font-weight:600}
+.hero-sub{margin:8px 0 0;font-size:14px;line-height:1.6;color:var(--muted)}
+.cus-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cus-stats .card{margin:0;padding:14px 12px;text-align:center}
+.cus-stats span{display:block;font-size:12px;color:var(--muted)}
+.cus-stats small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.cus-stats b{display:block;font-size:24px;margin-top:4px;font-variant-numeric:tabular-nums}
+.cus-stats .card:nth-child(2) b{color:var(--orange)}
+.cus-stats .card:nth-child(3) b{color:var(--blue)}
+#update-bar{position:fixed;left:16px;right:16px;top:calc(env(safe-area-inset-top) + 8px);z-index:30;border:0;border-radius:12px;padding:12px;background:var(--blue);color:#fff;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .back{border:0;background:none;color:var(--blue);font-size:15px;padding:4px 0 12px}
 .cus-row{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:8px;font-size:16px}
 .cus-row small{color:var(--muted);font-size:12px;white-space:nowrap}
@@ -109,6 +128,7 @@ input:focus,textarea:focus{outline:2px solid var(--blue-soft);border-color:var(-
 /* ===== 風格 B：藍橘主色 ===== */
 :root{--line:#eee3d6}
 h2{display:flex;align-items:center;gap:10px;font-weight:600;font-size:22px;letter-spacing:.02em}
+h2.plain::before{display:none}
 h2::before{content:"";flex-shrink:0;width:14px;height:18px;border-radius:50%;background:var(--blue);transform:rotate(-20deg);box-shadow:8px -3px 0 -1px var(--orange)}
 .monthnav strong{font-weight:600;font-size:18px}
 .sheet h3,.cus-name{font-weight:600}
@@ -223,10 +243,25 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
     </section>
 
     <section id="view-customers" class="hidden">
-      <h2>搜尋客人</h2>
+      <h2 class="plain">搜尋客人</h2>
       <div id="cus-search-wrap">
-        <input id="cus-q" type="search" placeholder="輸入客人姓名" autocomplete="off" enterkeyhint="search">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+          <input id="cus-q" type="search" placeholder="輸入客人姓名或姓氏" autocomplete="off" enterkeyhint="search">
+        </div>
         <div id="cus-results"></div>
+        <div id="cus-empty">
+          <div class="card cus-hero">
+            <div class="blobs"><i></i><i></i></div>
+            <p class="hero-title">找找看是哪位客人</p>
+            <p class="hero-sub">輸入姓名或姓氏，就能看到她的來店紀錄、<br>常用色號和款式</p>
+          </div>
+          <div class="cus-stats">
+            <div class="card"><span>全部客人</span><b id="cs-all">0</b><small>曾經來過</small></div>
+            <div class="card"><span>本月來過</span><b id="cs-month">0</b><small id="cs-month-sub">這個月</small></div>
+            <div class="card"><span>熟客</span><b id="cs-loyal">0</b><small>來過 3 次以上</small></div>
+          </div>
+        </div>
       </div>
       <div id="cus-detail" class="hidden"></div>
     </section>
@@ -284,9 +319,13 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
   </div>
 </div>
 
+<button type="button" id="update-bar" class="hidden">有新版本，點這裡更新</button>
 <div class="toast" id="toast"></div>
 
 <script>
+/* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
+const APP_VERSION = '2026-11-11.2';
+
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
 
@@ -403,6 +442,7 @@ function applyData(d) {
   Object.keys(TYPES).forEach(renderChips);
   renderCodes();
   renderRecent();
+  renderCusStats();
   renderStats();
 }
 
@@ -547,7 +587,8 @@ function insertCode(code) {
 function renderCusResults() {
   const box = $('cus-results');
   const q = $('cus-q').value.trim().toLowerCase();
-  if (!q) { box.innerHTML = ''; return; }   // 沒打字就不列
+  $('cus-empty').classList.toggle('hidden', !!q);
+  if (!q) { box.innerHTML = ''; renderCusStats(); return; }   // 沒打字就顯示概況
   const m = state.customers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 20);
   if (!m.length) { box.innerHTML = '<div class="empty">找不到符合的客人</div>'; return; }
   box.innerHTML = m.map((c, i) =>
@@ -574,7 +615,18 @@ async function openCustomer(name) {
 function closeCustomer() {
   $('cus-detail').classList.add('hidden');
   $('cus-search-wrap').classList.remove('hidden');
+  // 回到搜尋時清空，直接重新開始
+  $('cus-q').value = '';
+  renderCusResults();
   window.scrollTo(0, 0);
+}
+/* 搜尋頁還沒輸入時的客人概況 */
+function renderCusStats() {
+  const ym = (state.today || todayStr()).slice(0, 7);
+  $('cs-all').textContent = state.customers.length;
+  $('cs-month').textContent = state.customers.filter(c => String(c.last).slice(0, 7) === ym).length;
+  $('cs-loyal').textContent = state.customers.filter(c => c.count >= 3).length;
+  $('cs-month-sub').textContent = Number(ym.slice(5)) + ' 月';
 }
 function renderCustomer(c, showAll) {
   const box = $('cus-detail');
@@ -880,6 +932,7 @@ function resetForm() {
 
 /* ----- 分頁 ----- */
 function showTab(name) {
+  if (name !== 'customers' && $('view-customers') && !$('view-customers').classList.contains('hidden')) closeCustomer();
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
   $('view-form').classList.toggle('hidden', name !== 'form');
   $('view-recent').classList.toggle('hidden', name !== 'recent');
@@ -900,8 +953,29 @@ document.querySelectorAll('.tab').forEach(t => { t.onclick = () => showTab(t.dat
 })();
 // 從背景切回 App 時自動更新
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && store.get('luff_token')) load();
+  if (document.visibilityState !== 'visible') return;
+  checkUpdate();
+  if (store.get('luff_token')) load();
 });
+
+/* ----- 自動檢查新版本 ----- */
+function formDirty() {
+  return !!($('name').value || $('amount').value || $('note').value || state.editingId ||
+    Object.values(state.sel).some(s => s.size));
+}
+async function checkUpdate() {
+  try {
+    const res = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
+    const m = (await res.text()).match(/const APP_VERSION = '([^']+)'/);
+    if (!m || m[1] === APP_VERSION) return;
+    const go = () => location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
+    if (!formDirty()) return go();          // 沒有填到一半的資料，直接更新
+    const bar = $('update-bar');            // 有填到一半，先提示，不打斷
+    bar.classList.remove('hidden');
+    bar.onclick = go;
+  } catch (e) {}
+}
+checkUpdate();
 </script>
 </body>
 </html>
