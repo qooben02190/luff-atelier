@@ -62,6 +62,16 @@ input:focus,textarea:focus{outline:2px solid var(--blue-soft);border-color:var(-
 .rec .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
 .rec .meta{color:var(--muted);font-size:13px;margin-top:4px}
 .rec .note{font-size:14px;margin-top:6px}
+.rec{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s,background .15s}
+.rec.pressing{transform:scale(.98);background:var(--blue-soft)}
+.rec-hint{margin:-6px 2px 12px;font-size:13px;color:var(--muted)}
+.act{text-align:center}
+.act h3{margin-bottom:2px}
+.act p{margin:0 0 16px;color:var(--muted);font-size:14px}
+.act button{display:block;width:100%;margin-top:10px}
+.editbar{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+.del{display:block;width:100%;margin-top:10px;padding:13px;font-size:15px;border:1px solid #c4452e;color:#c4452e;background:none;border-radius:14px}
+.del:disabled{opacity:.5}
 .empty{color:var(--muted);text-align:center;padding:32px}
 
 .monthnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -139,7 +149,11 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
 
   <main>
     <section id="view-form">
-      <h2>新增紀錄</h2>
+      <h2 id="form-title">新增紀錄</h2>
+      <div class="editbar hidden" id="editbar">
+        <span id="edit-label">正在修改</span>
+        <button type="button" class="btn2 small" id="cancel-edit">取消修改</button>
+      </div>
       <div class="card">
         <div class="field"><label class="lbl" for="date">日期</label><input type="date" id="date"></div>
         <div class="field">
@@ -206,6 +220,16 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
       <button type="button" class="btn-ghost" id="cf-back">返回修改</button>
       <button type="button" class="submit" id="cf-ok">確認儲存</button>
     </div>
+  </div>
+</div>
+
+<div id="actions" class="sheet-wrap hidden">
+  <div class="sheet act" role="dialog" aria-modal="true" aria-labelledby="act-title">
+    <h3 id="act-title"></h3>
+    <p id="act-sub"></p>
+    <button type="button" class="submit" id="act-edit">修改這筆紀錄</button>
+    <button type="button" class="del" id="act-delete">刪除這筆紀錄</button>
+    <button type="button" class="btn-ghost" id="act-cancel">取消</button>
   </div>
 </div>
 
@@ -335,7 +359,9 @@ function applyData(d) {
 function renderChips(key) {
   const box = $('chips-' + key);
   const sel = state.sel[key];
-  const list = sortByUsage(TYPES[key], state.options[TYPES[key]] || []);
+  const base = sortByUsage(TYPES[key], state.options[TYPES[key]] || []);
+  // 修改舊紀錄時，已選但不在選單裡的值（例如舊的「手卸光」）也要顯示出來
+  const list = base.concat([...sel].filter(v => base.indexOf(v) === -1));
   box.innerHTML = list.map(v =>
     `<button type="button" class="chip${sel.has(v) ? ' on' : ''}${labelWidth(v) > 6 ? ' long' : ''}" data-v="${esc(v)}">${esc(v)}</button>`
   ).join('') + '<button type="button" class="chip add">＋ 新增</button>';
@@ -495,7 +521,87 @@ function renderRecent() {
       <div class="meta">${esc([r.items, r.styles].filter(Boolean).join(' ／ '))}</div>
       ${r.note ? `<div class="note">${esc(r.note)}</div>` : ''}
     </div>`).join('');
+  box.innerHTML = '<p class="rec-hint">長按紀錄可以修改或刪除</p>' + box.innerHTML;
+  box.querySelectorAll('.rec').forEach((card, i) => attachLongPress(card, () => openActions(state.recent[i])));
 }
+
+/* 長按 0.5 秒觸發；手指移動超過一點點（在捲動）就取消 */
+function attachLongPress(el, fn) {
+  let timer = null, x = 0, y = 0;
+  const cancel = () => { clearTimeout(timer); timer = null; el.classList.remove('pressing'); };
+  el.addEventListener('pointerdown', e => {
+    x = e.clientX; y = e.clientY;
+    el.classList.add('pressing');
+    timer = setTimeout(() => { cancel(); if (navigator.vibrate) navigator.vibrate(10); fn(); }, 500);
+  });
+  el.addEventListener('pointermove', e => { if (timer && (Math.abs(e.clientX - x) > 8 || Math.abs(e.clientY - y) > 8)) cancel(); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => el.addEventListener(ev, cancel));
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+/* 長按後跳出的選單 */
+function openActions(r) {
+  if (!r) return;
+  state.actionRec = r;
+  $('act-title').textContent = r.name;
+  $('act-sub').textContent = r.date + '　$' + Number(r.amount || 0).toLocaleString();
+  $('actions').classList.remove('hidden');
+}
+function closeActions() { $('actions').classList.add('hidden'); state.actionRec = null; }
+$('act-cancel').onclick = closeActions;
+$('actions').onclick = e => { if (e.target === $('actions')) closeActions(); };
+$('act-edit').onclick = () => { const r = state.actionRec; closeActions(); startEdit(r); };
+$('act-delete').onclick = async () => {
+  const r = state.actionRec;
+  if (!r) return;
+  if (!confirm('確定要刪除「' + r.name + '　' + r.date + '　$' + Number(r.amount || 0).toLocaleString() + '」嗎？\n刪除後無法復原。')) return;
+  const btn = $('act-delete');
+  btn.disabled = true;
+  btn.textContent = '刪除中…';
+  try {
+    const d = await api('delete', { id: r.id });
+    store.set('luff_cache', JSON.stringify(d));
+    applyData(d);
+    closeActions();
+    toast('已刪除');
+  } catch (e) {
+    toast('刪除失敗：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '刪除這筆紀錄';
+  }
+};
+
+/* ----- 修改／刪除 ----- */
+function splitList(s) {
+  return String(s || '').split('、').map(v => v.trim()).filter(Boolean);
+}
+function startEdit(r) {
+  if (!r) return;
+  state.editingId = r.id;
+  $('date').value = r.date;
+  $('name').value = r.name;
+  $('amount').value = r.amount;
+  $('note').value = r.note;
+  state.sel.items = new Set(splitList(r.items));
+  state.sel.styles = new Set(splitList(r.styles));
+  state.sel.payment = new Set(r.payment ? [r.payment] : []);
+  Object.keys(TYPES).forEach(renderChips);
+  $('suggest').innerHTML = '';
+  $('form-title').textContent = '修改紀錄';
+  $('edit-label').textContent = '正在修改：' + r.name + '　' + r.date;
+  $('editbar').classList.remove('hidden');
+  $('submit').textContent = '更新紀錄';
+  showTab('form');
+}
+function exitEdit() {
+  state.editingId = null;
+  $('form-title').textContent = '新增紀錄';
+  $('editbar').classList.add('hidden');
+  $('submit').textContent = '儲存紀錄';
+}
+$('cancel-edit').onclick = () => { exitEdit(); resetForm(); showTab('recent'); };
+
 
 /* ----- 月統計與目標 ----- */
 function renderStats() {
@@ -612,6 +718,8 @@ function openConfirm(rec) {
     row('付款', esc(rec.payment)) +
     (rec.note ? row('備註', esc(rec.note)) : '');
   state.pending = rec;
+  $('cf-title').textContent = state.editingId ? '確認修改這筆紀錄' : '確認這筆紀錄';
+  $('cf-ok').textContent = state.editingId ? '確認更新' : '確認儲存';
   $('confirm').classList.remove('hidden');
 }
 function closeConfirm() {
@@ -625,19 +733,22 @@ $('cf-ok').onclick = async () => {
   if (!rec) return;
   const ok = $('cf-ok'), back = $('cf-back');
   ok.disabled = back.disabled = true;
-  ok.textContent = '儲存中…';
+  const editing = state.editingId;
+  ok.textContent = editing ? '更新中…' : '儲存中…';
   try {
-    const d = await api('save', { record: rec });
+    const d = editing ? await api('update', { id: editing, record: rec }) : await api('save', { record: rec });
     store.set('luff_cache', JSON.stringify(d));
     applyData(d);
     closeConfirm();
+    if (editing) exitEdit();
     resetForm();
-    toast('已儲存');
+    if (editing) showTab('recent');
+    toast(editing ? '已更新' : '已儲存');
   } catch (e) {
-    toast('儲存失敗：' + e.message);
+    toast((editing ? '更新' : '儲存') + '失敗：' + e.message);
   } finally {
     ok.disabled = back.disabled = false;
-    ok.textContent = '確認儲存';
+    ok.textContent = state.editingId ? '確認更新' : '確認儲存';
   }
 };
 function resetForm() {
