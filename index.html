@@ -64,6 +64,20 @@ input:focus,textarea:focus{outline:2px solid var(--blue-soft);border-color:var(-
 .rec .note{font-size:14px;margin-top:6px}
 .rec{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s,background .15s}
 .rec.pressing{transform:scale(.98);background:var(--blue-soft)}
+.back{border:0;background:none;color:var(--blue);font-size:15px;padding:4px 0 12px}
+.cus-row{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:8px;font-size:16px}
+.cus-row small{color:var(--muted);font-size:12px;white-space:nowrap}
+#cus-results{margin-top:4px}
+.cus-name{font-family:var(--serif);font-size:26px;margin-bottom:12px}
+.cus-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.cus-grid span{display:block;font-size:12px;color:var(--muted)}
+.cus-grid b{font-size:16px;font-variant-numeric:tabular-nums}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{background:var(--orange-soft);border-radius:8px;padding:5px 9px;font-size:13px}
+.tag small{color:var(--muted);margin-left:3px;font-size:11px}
+.tags .none{font-size:13px;color:var(--muted)}
+.more{display:block;width:100%;margin-top:4px}
+#view-customers .rec{-webkit-user-select:auto;user-select:auto}
 .rec-hint{margin:-6px 2px 12px;font-size:13px;color:var(--muted)}
 .act{text-align:center}
 .act h3{margin-bottom:2px}
@@ -183,6 +197,15 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
       <div id="recent"></div>
     </section>
 
+    <section id="view-customers" class="hidden">
+      <h2>客人</h2>
+      <div id="cus-search-wrap">
+        <input id="cus-q" type="search" placeholder="輸入客人姓名" autocomplete="off" enterkeyhint="search">
+        <div id="cus-results"></div>
+      </div>
+      <div id="cus-detail" class="hidden"></div>
+    </section>
+
     <section id="view-stats" class="hidden">
       <div class="monthnav">
         <button type="button" class="btn2" id="prev-month" aria-label="上個月">‹</button>
@@ -205,6 +228,9 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
     </button>
     <button class="tab" data-tab="recent">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>紀錄
+    </button>
+    <button class="tab" data-tab="customers">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg>客人
     </button>
     <button class="tab" data-tab="stats">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>統計
@@ -492,6 +518,73 @@ function insertCode(code) {
 }
 ['input', 'click', 'keyup', 'focus'].forEach(ev => $('note').addEventListener(ev, renderCodes));
 
+/* ----- 客人分頁 ----- */
+function renderCusResults() {
+  const box = $('cus-results');
+  const q = $('cus-q').value.trim().toLowerCase();
+  if (!q) { box.innerHTML = ''; return; }   // 沒打字就不列
+  const m = state.customers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 20);
+  if (!m.length) { box.innerHTML = '<div class="empty">找不到符合的客人</div>'; return; }
+  box.innerHTML = m.map((c, i) =>
+    `<button type="button" class="cus-row" data-i="${i}"><span>${esc(c.name)}</span>` +
+    `<small>來店 ${c.count} 次 · 最近 ${esc(c.last)}</small></button>`).join('');
+  box.querySelectorAll('.cus-row').forEach(b => { b.onclick = () => openCustomer(m[b.dataset.i].name); });
+}
+$('cus-q').addEventListener('input', renderCusResults);
+
+async function openCustomer(name) {
+  const box = $('cus-detail');
+  $('cus-search-wrap').classList.add('hidden');
+  box.classList.remove('hidden');
+  box.innerHTML = `<button type="button" class="back" id="cus-back">‹ 返回搜尋</button><div class="empty">載入「${esc(name)}」的資料…</div>`;
+  $('cus-back').onclick = closeCustomer;
+  window.scrollTo(0, 0);
+  try {
+    const c = await api('customer', { name: name });
+    renderCustomer(c, false);
+  } catch (e) {
+    box.querySelector('.empty').textContent = '載入失敗：' + e.message;
+  }
+}
+function closeCustomer() {
+  $('cus-detail').classList.add('hidden');
+  $('cus-search-wrap').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+function renderCustomer(c, showAll) {
+  const box = $('cus-detail');
+  const tags = list => list.length
+    ? list.map(t => `<span class="tag">${esc(t.name)}<small>×${t.count}</small></span>`).join('')
+    : '<span class="none">還沒有紀錄</span>';
+  const visits = showAll ? c.visits : c.visits.slice(0, 5);
+  box.innerHTML = `
+    <button type="button" class="back" id="cus-back">‹ 返回搜尋</button>
+    <div class="card">
+      <div class="cus-name">${esc(c.name)}</div>
+      <div class="cus-grid">
+        <div><span>來店次數</span><b>${c.count} 次</b></div>
+        <div><span>平均多久來一次</span><b>${c.interval ? '約 ' + c.interval + ' 天' : '—'}</b></div>
+        <div><span>第一次來</span><b>${esc(c.first)}</b></div>
+        <div><span>最近一次來</span><b>${esc(c.last)}</b></div>
+        <div><span>累計消費</span><b>$${c.total.toLocaleString()}</b></div>
+        <div><span>平均客單價</span><b>$${c.avg.toLocaleString()}</b></div>
+      </div>
+      <div class="lbl" style="margin-top:14px">最常用的色號</div><div class="tags">${tags(c.topColors)}</div>
+      <div class="lbl" style="margin-top:12px">最常做的款式</div><div class="tags">${tags(c.topStyles)}</div>
+    </div>
+    <div class="lbl" style="margin:16px 2px 8px">過去紀錄（共 ${c.visits.length} 筆）</div>
+    ${visits.map(v => `
+      <div class="card rec">
+        <div class="top"><span>${esc(v.date)}</span><span>$${v.amount.toLocaleString()}</span></div>
+        <div class="meta">${esc([v.items, v.styles].filter(Boolean).join(' ／ '))}${v.payment ? ' · ' + esc(v.payment) : ''}</div>
+        ${v.note ? `<div class="note">${esc(v.note)}</div>` : ''}
+      </div>`).join('')}
+    ${!showAll && c.visits.length > 5 ? `<button type="button" class="btn-ghost more" id="cus-more">顯示全部 ${c.visits.length} 筆</button>` : ''}`;
+  $('cus-back').onclick = closeCustomer;
+  const more = $('cus-more');
+  if (more) more.onclick = () => renderCustomer(c, true);
+}
+
 /* ----- 舊客建議 ----- */
 function renderSuggest() {
   const box = $('suggest');
@@ -765,6 +858,7 @@ function showTab(name) {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
   $('view-form').classList.toggle('hidden', name !== 'form');
   $('view-recent').classList.toggle('hidden', name !== 'recent');
+  $('view-customers').classList.toggle('hidden', name !== 'customers');
   $('view-stats').classList.toggle('hidden', name !== 'stats');
   window.scrollTo(0, 0);
 }
