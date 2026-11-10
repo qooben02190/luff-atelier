@@ -87,6 +87,8 @@ input:focus,textarea:focus{outline:2px solid var(--blue-soft);border-color:var(-
 .cus-row{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:8px;font-size:16px}
 .cus-row small{color:var(--muted);font-size:12px;white-space:nowrap}
 #cus-results{margin-top:4px}
+.cus-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.cus-head .btn2{flex-shrink:0;margin-top:4px}
 .cus-name{font-family:var(--serif);font-size:26px;margin-bottom:12px}
 .cus-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
 .cus-grid span{display:block;font-size:12px;color:var(--muted)}
@@ -161,6 +163,12 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
 .codes:empty{display:none}
 .code{border:1px solid var(--line);background:var(--orange-soft);border-radius:8px;padding:6px 10px;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
 .codes .hint{width:100%;font-size:12px;color:var(--muted)}
+.name-note{background:var(--orange-soft);border-radius:12px;padding:12px;margin-bottom:6px;font-size:14px;line-height:1.5}
+.name-note.new{background:var(--blue-soft)}
+.name-picks{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.name-pick{border:1px solid var(--orange);background:var(--card);color:var(--text);border-radius:999px;padding:7px 14px;font-size:15px;font-weight:600}
+.name-pick.keep{border-color:var(--line);font-weight:400;color:var(--muted)}
+#cf-ok:disabled{opacity:.4}
 .sheet-wrap{position:fixed;inset:0;z-index:20;background:rgba(20,18,16,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fade .2s ease-out}
 .sheet{width:100%;max-width:400px;max-height:85vh;overflow-y:auto;background:var(--card);border-radius:22px;padding:22px 20px 18px;box-shadow:0 20px 50px rgba(0,0,0,.18);animation:pop .26s cubic-bezier(.2,.9,.3,1.25)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -323,14 +331,14 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-11.3';
+const APP_VERSION = '2026-11-11.5';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
 
 const TYPES = { items: '項目', styles: '款式', payment: '付款方式' };
 const MULTI = { items: true, styles: true, payment: false };
-const state = { options: {}, usage: {}, colors: [], customers: [], recent: [], monthly: {}, targets: { list: [], booked: 0 }, today: '', month: '', sel: { items: new Set(), styles: new Set(), payment: new Set() } };
+const state = { options: {}, usage: {}, colors: [], aliases: {}, customers: [], recent: [], monthly: {}, targets: { list: [], booked: 0 }, today: '', month: '', sel: { items: new Set(), styles: new Set(), payment: new Set() } };
 const $ = id => document.getElementById(id);
 
 /* ----- 手機端儲存（登入憑證、上次資料，讓開啟更快） ----- */
@@ -430,6 +438,7 @@ function applyData(d) {
   state.options = d.options || {};
   state.usage = d.usage || {};
   state.colors = d.colors || [];
+  state.aliases = d.aliases || {};
   state.sortCache = {};
   state.customers = d.customers || [];
   state.recent = d.recent || [];
@@ -611,6 +620,29 @@ async function openCustomer(name) {
     box.querySelector('.empty').textContent = '載入失敗：' + e.message;
   }
 }
+async function renameCustomer(c) {
+  const to = (prompt('「' + c.name + '」要改成什麼名字？', c.name) || '').trim();
+  if (!to || to === c.name) return;
+  const other = state.customers.find(x => x.name === to);
+  const msg = other
+    ? '「' + to + '」已經是另一位客人（來過 ' + other.count + ' 次）。\n改名後，兩位的紀錄會合在一起，變成同一位客人。\n\n確定要合併嗎？'
+    : '要把「' + c.name + '」的 ' + c.count + ' 筆紀錄，都改成「' + to + '」嗎？';
+  if (!confirm(msg)) return;
+  const btn = $('cus-rename');
+  btn.disabled = true;
+  btn.textContent = '修改中…';
+  try {
+    const d = await api('renameCustomer', { from: c.name, to: to });
+    store.set('luff_cache', JSON.stringify(d.init));
+    applyData(d.init);
+    renderCustomer(d.customer, false);
+    toast('已更新 ' + d.changed + ' 筆紀錄');
+  } catch (e) {
+    toast('修改失敗：' + e.message);
+    btn.disabled = false;
+    btn.textContent = '改名字';
+  }
+}
 function closeCustomer() {
   $('cus-detail').classList.add('hidden');
   $('cus-search-wrap').classList.remove('hidden');
@@ -636,7 +668,7 @@ function renderCustomer(c, showAll) {
   box.innerHTML = `
     <button type="button" class="back" id="cus-back">‹ 返回搜尋</button>
     <div class="card">
-      <div class="cus-name">${esc(c.name)}</div>
+      <div class="cus-head"><div class="cus-name">${esc(c.name)}</div><button type="button" class="btn2 small" id="cus-rename">改名字</button></div>
       <div class="cus-grid">
         <div><span>來店次數</span><b>${c.count} 次</b></div>
         <div><span>平均多久來一次</span><b>${c.interval ? '約 ' + c.interval + ' 天' : '—'}</b></div>
@@ -657,6 +689,7 @@ function renderCustomer(c, showAll) {
       </div>`).join('')}
     ${!showAll && c.visits.length > 5 ? `<button type="button" class="btn-ghost more" id="cus-more">顯示全部 ${c.visits.length} 筆</button>` : ''}`;
   $('cus-back').onclick = closeCustomer;
+  $('cus-rename').onclick = () => renameCustomer(c);
   const more = $('cus-more');
   if (more) more.onclick = () => renderCustomer(c, true);
 }
@@ -876,9 +909,45 @@ $('submit').onclick = () => {
 };
 
 /* 儲存前確認 */
+/* 姓名檢查：確保用的是系統裡的名字 */
+function nameCheck(name) {
+  const n = name.trim();
+  const low = n.toLowerCase();
+  const list = state.customers;
+  if (state.aliases[n]) return { type: 'alias', to: [state.aliases[n]] };          // 已統一的舊名字
+  if (list.some(c => c.name === n)) return { type: 'ok' };                         // 系統裡已經有
+  const exactCase = list.find(c => c.name.toLowerCase() === low);                  // 只差大小寫（lynn／Lynn）
+  if (exactCase) return { type: 'similar', to: [exactCase.name] };
+  const chars = [...n];
+  const score = c => {
+    if (c.name.includes(n) || n.includes(c.name)) return 10;                       // 佩玲／廖佩玲
+    return [...new Set(chars)].filter(ch => c.name.includes(ch)).length;            // 有幾個字一樣
+  };
+  const similar = list
+    .map(c => ({ c: c, s: score(c) }))
+    .filter(x => x.s >= 10 || (x.s >= 2 && chars.length >= 2))
+    .sort((a, b) => b.s - a.s || b.c.count - a.c.count)
+    .slice(0, 3)
+    .map(x => x.c.name);
+  return similar.length ? { type: 'similar', to: similar } : { type: 'new' };
+}
+function nameNotice(rec) {
+  const chk = nameCheck(rec.name);
+  if (chk.type === 'ok') return '';
+  if (chk.type === 'new') return `<div class="name-note new">「${esc(rec.name)}」是<b>新客人</b>，系統裡還沒有這個名字</div>`;
+  const msg = chk.type === 'alias'
+    ? `「${esc(rec.name)}」已經統一成下面的名字，請改用：`
+    : `系統裡沒有「${esc(rec.name)}」，是不是這位？`;
+  return `<div class="name-note">${msg}<div class="name-picks">` +
+    chk.to.map(n => `<button type="button" class="name-pick" data-n="${esc(n)}">${esc(n)}</button>`).join('') +
+    (chk.type === 'similar' ? `<button type="button" class="name-pick keep">都不是，是新客人</button>` : '') +
+    `</div></div>`;
+}
+
 function openConfirm(rec) {
   const row = (k, v) => `<div class="cf-row"><span>${k}</span><span>${v}</span></div>`;
   $('cf-body').innerHTML =
+    nameNotice(rec) +
     row('日期', esc(rec.date)) +
     row('客人', esc(rec.name)) +
     row('項目', esc(rec.items.join('、'))) +
@@ -887,6 +956,20 @@ function openConfirm(rec) {
     row('付款', esc(rec.payment)) +
     (rec.note ? row('備註', esc(rec.note)) : '');
   state.pending = rec;
+  $('cf-body').querySelectorAll('.name-pick').forEach(b => {
+    b.onclick = () => {
+      if (b.classList.contains('keep')) { state.keepName = rec.name; }
+      else { rec.name = b.dataset.n; $('name').value = rec.name; }
+      openConfirm(rec);   // 重新顯示確認內容
+    };
+  });
+  // 有疑問的名字要先選一個，才能按確認
+  const unresolved = !!$('cf-body').querySelector('.name-pick') && state.keepName !== rec.name;
+  $('cf-ok').disabled = unresolved;
+  if (state.keepName === rec.name) {
+    const note = $('cf-body').querySelector('.name-note');
+    if (note) note.outerHTML = `<div class="name-note new">「${esc(rec.name)}」會記成<b>新客人</b></div>`;
+  }
   $('cf-title').textContent = state.editingId ? '確認修改這筆紀錄' : '確認這筆紀錄';
   $('cf-ok').textContent = state.editingId ? '確認更新' : '確認儲存';
   $('confirm').classList.remove('hidden');
