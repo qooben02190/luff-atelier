@@ -252,6 +252,8 @@ main section:not(.hidden){animation:fadeUp .35s ease}
 .toast.show{transform:translate(-50%,0)}
 .toast::before{content:"✓";display:inline-flex;flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#2a5bd7;align-items:center;justify-content:center;font-size:12px}
 .toast.err::before{content:"!";background:#e5804a}
+.toast.tap{pointer-events:auto;cursor:pointer}
+.toast .undo{color:#8fb0ff;font-weight:600;margin-left:4px}
 /* 目標圓環 */
 .rings{display:flex;justify-content:space-around;gap:6px;margin:14px 0 6px}
 .ring{position:relative;flex:1;max-width:110px;text-align:center}
@@ -279,18 +281,18 @@ main section:not(.hidden){animation:fadeUp .35s ease}
 @keyframes shimmer{to{transform:translateX(100%)}}
 .skel-num{display:inline-block;width:60%;height:30px;border-radius:10px}
 /* ---------- 卡片依序浮上來 ---------- */
-.rise{animation:rise .55s cubic-bezier(.2,.9,.3,1.15) both}
+.rise{animation:rise .38s cubic-bezier(.2,.9,.3,1.1) both}
 @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
 main section:not(.hidden){animation:none}
 /* ---------- 月份切換滑動 ---------- */
-.slide-l{animation:slideL .45s cubic-bezier(.2,.9,.3,1) both}
-.slide-r{animation:slideR .45s cubic-bezier(.2,.9,.3,1) both}
+.slide-l{animation:slideL .3s cubic-bezier(.2,.9,.3,1) both}
+.slide-r{animation:slideR .3s cubic-bezier(.2,.9,.3,1) both}
 @keyframes slideL{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes slideR{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 /* ---------- 數字逐位滾動 ---------- */
 .odo{display:inline-flex;overflow:hidden;line-height:1.15;vertical-align:bottom}
 .odo .d{display:inline-block;height:1.15em;overflow:hidden}
-.odo .d span{display:flex;flex-direction:column;transition:transform .9s cubic-bezier(.2,.9,.25,1.08)}
+.odo .d span{display:flex;flex-direction:column;transition:transform .5s cubic-bezier(.2,.9,.25,1.05)}
 .odo .d span i{font-style:normal;height:1.15em}
 /* ---------- 舊客建議展開 ---------- */
 .sug{animation:sugIn .3s cubic-bezier(.2,.9,.3,1.2) both}
@@ -325,6 +327,12 @@ main section:not(.hidden){animation:none}
 #cf-ok.morph{flex:0 0 56px}
 .cf-btns .btn-ghost{transition:opacity .2s,flex .35s}
 
+.form-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.form-head h2{margin-right:auto}
+.clear-btn{display:inline-flex;align-items:center;gap:4px;border:0;background:var(--card);color:var(--muted);font:inherit;font-size:12px;font-weight:600;
+  padding:6px 11px;border-radius:999px;margin-bottom:10px;transition:opacity .2s}
+.clear-btn svg{width:13px;height:13px}
+.clear-btn.off{opacity:0;pointer-events:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (prefers-color-scheme:dark){.stat.dark{background:linear-gradient(135deg,#3a5fc4,#24409a)}.stat.dark .lbl{color:#c7d3f5}}
 </style>
@@ -359,7 +367,10 @@ main section:not(.hidden){animation:none}
 
   <main>
     <section id="view-form">
-      <h2 id="form-title">新增紀錄</h2>
+      <div class="form-head">
+        <h2 id="form-title">新增紀錄</h2>
+        <button type="button" class="clear-btn" id="clear-form" aria-label="清除表單"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>清除</button>
+      </div>
       <div class="pend hidden" id="pend">
         <div class="pend-head"><b>今天還沒記帳</b><span>點名字帶入</span></div>
         <div class="pend-chips" id="pend-chips"></div>
@@ -368,7 +379,7 @@ main section:not(.hidden){animation:none}
         <span id="edit-label">正在修改</span>
         <button type="button" class="btn2 small" id="cancel-edit">取消修改</button>
       </div>
-      <div class="card"><span class="eyebrow">CLIENT</span>
+      <div class="card">
         <div class="field"><label class="lbl" for="date">日期</label><input type="date" id="date"></div>
         <div class="field">
           <label class="lbl" for="name">客人姓名 *</label>
@@ -376,11 +387,11 @@ main section:not(.hidden){animation:none}
           <div id="suggest" class="suggest"></div>
         </div>
       </div>
-      <div class="card"><span class="eyebrow">SERVICE</span>
+      <div class="card">
         <div class="field"><span class="lbl">項目 *（可複選，長按可刪除）</span><div class="chips" id="chips-items">載入中…</div></div>
         <div class="field"><span class="lbl">款式（可複選，長按可刪除）</span><div class="chips" id="chips-styles"></div></div>
       </div>
-      <div class="card"><span class="eyebrow">CHECKOUT</span>
+      <div class="card">
         <div class="field"><label class="lbl" for="amount">金額 *</label><input type="number" id="amount" inputmode="numeric" min="0" placeholder="0"></div>
         <div class="field"><span class="lbl">付款方式 *</span><div class="chips" id="chips-payment"></div></div>
         <div class="field">
@@ -427,10 +438,10 @@ main section:not(.hidden){animation:none}
         <strong id="month-label"></strong>
         <button type="button" class="btn2" id="next-month" aria-label="下個月">›</button>
       </div>
-      <div class="card stat dark"><span class="eyebrow">REVENUE</span><div class="lbl">總金額</div><div class="big" id="st-total">$0</div></div>
+      <div class="card stat dark"><div class="lbl">總金額</div><div class="big" id="st-total">$0</div></div>
       <div class="stats2">
-        <div class="card stat"><span class="eyebrow">VISITS</span><div class="lbl">人次</div><div class="big" id="st-count">0</div></div>
-        <div class="card stat"><span class="eyebrow">AVG TICKET</span><div class="lbl">客單價平均</div><div class="big" id="st-avg">$0</div></div>
+        <div class="card stat"><div class="lbl">人次</div><div class="big" id="st-count">0</div></div>
+        <div class="card stat"><div class="lbl">客單價平均</div><div class="big" id="st-avg">$0</div></div>
       </div>
       <div class="card hidden" id="targets"></div>
       <button class="logout" id="logout">登出這支手機</button>
@@ -480,7 +491,7 @@ main section:not(.hidden){animation:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-12.1';
+const APP_VERSION = '2026-11-12.5';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -500,13 +511,15 @@ const store = {
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-function toast(msg) {
+function toast(msg, onTap) {
   const t = $('toast');
   t.textContent = msg;
+  t.onclick = onTap ? () => { t.classList.remove('show'); t.onclick = null; onTap(); } : null;
+  t.classList.toggle('tap', !!onTap);
   t.classList.toggle('err', /失敗|錯誤|請|無法|找不到/.test(msg));   // 錯誤用橘色驚嘆號
   t.classList.add('show');
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.classList.remove('show'), 2400);
+  toast.timer = setTimeout(() => { t.classList.remove('show'); t.onclick = null; t.classList.remove('tap'); }, onTap ? 4000 : 2400);
 }
 function todayStr() {
   const d = new Date();
@@ -977,6 +990,7 @@ function splitList(s) {
   return String(s || '').split('、').map(v => v.trim()).filter(Boolean);
 }
 function startEdit(r) {
+  setTimeout(updateClearBtn, 0);
   if (!r) return;
   $('pend').classList.add('hidden');
   state.editingId = r.id;
@@ -1007,6 +1021,17 @@ $('cancel-edit').onclick = () => { exitEdit(); resetForm(); showTab('recent'); }
 
 /* ----- 月統計與目標 ----- */
 /* 數字一位一位滾動到新的值（像計數器） */
+/* 進統計頁時：數字從 0 重新滾一次 */
+function replayNumbers() {
+  [['st-total', '$'], ['st-count', ''], ['st-avg', '$']].forEach(([id, prefix]) => {
+    const el = $(id);
+    if (el.dataset.v === undefined) return;
+    el.querySelectorAll('.odo .d > span').forEach(s => { s.style.transition = 'none'; s.style.transitionDelay = '0ms'; s.style.transform = 'translateY(0)'; });
+    void el.offsetHeight;
+    el.querySelectorAll('.odo .d > span').forEach(s => { s.style.transition = ''; });
+    rollNumber(el, Number(el.dataset.v), prefix);
+  });
+}
 function rollNumber(el, to, prefix) {
   el.dataset.v = to;
   const text = prefix + to.toLocaleString();
@@ -1024,7 +1049,7 @@ function rollNumber(el, to, prefix) {
   wrap.childNodes.forEach((n, i) => {
     const c = chars[i];
     if (n.classList.contains('d')) {
-      n.firstChild.style.transitionDelay = (k++ * 40) + 'ms';
+      n.firstChild.style.transitionDelay = (k++ * 15) + 'ms';
       n.firstChild.style.transform = 'translateY(-' + (Number(c) * 1.15) + 'em)';
     } else n.textContent = c;
   });
@@ -1044,10 +1069,10 @@ function animateRings() {
       return;
     }
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      prog.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)';
+      prog.style.transition = 'stroke-dashoffset .7s cubic-bezier(.2,.8,.2,1)';
       prog.style.strokeDashoffset = C * (1 - Math.min(1, pct));
     }));
-    const t0 = performance.now(), dur = 1200, to = Math.round(pct * 100);
+    const t0 = performance.now(), dur = 700, to = Math.round(pct * 100);
     cancelAnimationFrame(el._raf);
     const step = t => {
       const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
@@ -1152,7 +1177,7 @@ function shiftMonth(n) {
   renderStats();
   document.querySelectorAll('#view-stats .card').forEach((c, i) => {
     c.classList.remove('slide-l', 'slide-r', 'rise'); void c.offsetWidth;
-    c.style.animationDelay = (i * 40) + 'ms';
+    c.style.animationDelay = (i * 20) + 'ms';
     c.classList.add(n > 0 ? 'slide-l' : 'slide-r');
   });
 }
@@ -1380,6 +1405,8 @@ $('cf-ok').onclick = async () => {
 
 function resetForm() {
   ['name', 'amount', 'note'].forEach(id => $(id).value = '');
+  state.pendingKey = null;
+  setTimeout(updateClearBtn, 0);
   Object.values(state.sel).forEach(s => s.clear());
   Object.keys(TYPES).forEach(renderChips);
   $('suggest').innerHTML = '';
@@ -1399,14 +1426,14 @@ function riseIn(sec) {
   if (!sec) return;
   sec.querySelectorAll(':scope > h2, :scope > .card, :scope > div > .card, :scope .rec, :scope .cus-stats .card, :scope .monthnav').forEach((c, i) => {
     c.classList.remove('rise'); void c.offsetWidth;
-    c.style.animationDelay = Math.min(i * 55, 440) + 'ms';
+    c.style.animationDelay = Math.min(i * 30, 180) + 'ms';
     c.classList.add('rise');
   });
 }
 function showTab(name) {
   setTimeout(placeNavIndicator, 0);
   setTimeout(() => riseIn($('view-' + name)), 0);
-  if (name === 'stats') setTimeout(animateRings, 60);   // 每次進統計頁都從 0 轉一次
+  if (name === 'stats') requestAnimationFrame(() => { replayNumbers(); animateRings(); });   // 每次進統計頁都從 0 轉一次
   if (name !== 'customers' && $('view-customers') && !$('view-customers').classList.contains('hidden')) closeCustomer();
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
   $('view-form').classList.toggle('hidden', name !== 'form');
@@ -1418,6 +1445,7 @@ function showTab(name) {
 document.querySelectorAll('.tab').forEach(t => { t.onclick = () => showTab(t.dataset.tab); });
 
 /* ----- 開啟時 ----- */
+updateClearBtn();
 (function start() {
   if (!store.get('luff_token')) { showLogin(''); return; }
   $('app').classList.remove('hidden');
@@ -1443,6 +1471,33 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ----- 自動檢查新版本 ----- */
+/* ----- 清除：按一下清空（日期保留），4 秒內點提示可以復原 ----- */
+function updateClearBtn() {
+  const has = !!($('name').value || $('amount').value || $('note').value || Object.values(state.sel).some(s => s.size));
+  $('clear-form').classList.toggle('off', !has);
+}
+$('clear-form').onclick = () => {
+  const snap = {
+    name: $('name').value, amount: $('amount').value, note: $('note').value,
+    sel: Object.fromEntries(Object.entries(state.sel).map(([k, s]) => [k, [...s]])), pendingKey: state.pendingKey
+  };
+  $('view-form').classList.add('clearing');
+  setTimeout(() => {
+    resetForm();
+    $('view-form').classList.remove('clearing');
+    toast('已清除・點這裡復原', () => {
+      $('name').value = snap.name; $('amount').value = snap.amount; $('note').value = snap.note;
+      Object.entries(snap.sel).forEach(([k, arr]) => { state.sel[k].clear(); arr.forEach(v => state.sel[k].add(v)); });
+      state.pendingKey = snap.pendingKey;
+      Object.keys(TYPES).forEach(renderChips);
+      renderCodes(); updateClearBtn();
+      toast('已復原');
+    });
+  }, 180);
+};
+['input', 'click'].forEach(ev => $('view-form').addEventListener(ev, e => {
+  if (e.target.id !== 'clear-form') setTimeout(updateClearBtn, 0);
+}));
 function formDirty() {
   return !!($('name').value || $('amount').value || $('note').value || state.editingId ||
     Object.values(state.sel).some(s => s.size));
