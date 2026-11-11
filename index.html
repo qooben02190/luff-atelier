@@ -292,7 +292,7 @@ main section:not(.hidden){animation:none}
 /* ---------- 數字逐位滾動 ---------- */
 .odo{display:inline-flex;overflow:hidden;line-height:1.15;vertical-align:bottom}
 .odo .d{display:inline-block;height:1.15em;overflow:hidden}
-.odo .d span{display:flex;flex-direction:column;transition:transform .5s cubic-bezier(.2,.9,.25,1.05)}
+.odo .d span{display:flex;flex-direction:column;transition:transform .9s cubic-bezier(.2,.85,.25,1.04)}
 .odo .d span i{font-style:normal;height:1.15em}
 /* ---------- 舊客建議展開 ---------- */
 .sug{animation:sugIn .3s cubic-bezier(.2,.9,.3,1.2) both}
@@ -333,6 +333,8 @@ main section:not(.hidden){animation:none}
   padding:6px 11px;border-radius:999px;margin-bottom:10px;transition:opacity .2s}
 .clear-btn svg{width:13px;height:13px}
 .clear-btn.off{opacity:0;pointer-events:none}
+/* 底部標籤列當作畫面的底：內容捲到這裡就被蓋住 */
+#nav-floor{position:fixed;left:0;right:0;bottom:0;height:calc(env(safe-area-inset-bottom) + 80px);background:var(--bg);z-index:5;pointer-events:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (prefers-color-scheme:dark){.stat.dark{background:linear-gradient(135deg,#3a5fc4,#24409a)}.stat.dark .lbl{color:#c7d3f5}}
 </style>
@@ -448,6 +450,7 @@ main section:not(.hidden){animation:none}
     </section>
   </main>
 
+  <div id="nav-floor"></div>
   <nav>
     <div id="nav-ind"></div>
     <button class="tab active" data-tab="form">
@@ -491,7 +494,7 @@ main section:not(.hidden){animation:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-12.5';
+const APP_VERSION = '2026-11-12.6';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -1049,7 +1052,7 @@ function rollNumber(el, to, prefix) {
   wrap.childNodes.forEach((n, i) => {
     const c = chars[i];
     if (n.classList.contains('d')) {
-      n.firstChild.style.transitionDelay = (k++ * 15) + 'ms';
+      n.firstChild.style.transitionDelay = (k++ * 35) + 'ms';
       n.firstChild.style.transform = 'translateY(-' + (Number(c) * 1.15) + 'em)';
     } else n.textContent = c;
   });
@@ -1069,10 +1072,10 @@ function animateRings() {
       return;
     }
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      prog.style.transition = 'stroke-dashoffset .7s cubic-bezier(.2,.8,.2,1)';
+      prog.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)';
       prog.style.strokeDashoffset = C * (1 - Math.min(1, pct));
     }));
-    const t0 = performance.now(), dur = 700, to = Math.round(pct * 100);
+    const t0 = performance.now(), dur = 1100, to = Math.round(pct * 100);
     cancelAnimationFrame(el._raf);
     const step = t => {
       const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
@@ -1416,6 +1419,8 @@ function resetForm() {
 
 /* ----- 分頁 ----- */
 function placeNavIndicator() {
+  const nav = document.querySelector('nav'), floor = $('nav-floor');
+  if (nav && floor && nav.offsetHeight) floor.style.height = Math.max(0, innerHeight - nav.getBoundingClientRect().top) + 'px';
   const a = document.querySelector('.tab.active'), ind = $('nav-ind');
   if (!a || !ind || !a.offsetWidth) return;
   ind.style.left = a.offsetLeft + 'px';
