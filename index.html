@@ -169,11 +169,15 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
 .name-pick{border:1px solid var(--orange);background:var(--card);color:var(--text);border-radius:999px;padding:7px 14px;font-size:15px;font-weight:600}
 .name-pick.keep{border-color:var(--line);font-weight:400;color:var(--muted)}
 #cf-ok:disabled{opacity:.4}
-.now-bk{display:flex;align-items:center;gap:8px;width:100%;margin:-4px 0 12px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);text-align:left;font:inherit;font-size:14px;color:inherit;cursor:pointer}
-.now-label{flex-shrink:0;font-size:11px;color:#fff;background:var(--blue);border-radius:999px;padding:2px 7px}
-.now-time{flex-shrink:0;font-weight:600;color:var(--blue);font-variant-numeric:tabular-nums}
-.now-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.now-go{flex-shrink:0;font-size:13px;color:var(--orange);font-weight:600}
+.pend{margin:-4px 0 14px}
+.pend-head{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px 8px;font-size:13px;color:var(--muted)}
+.pend-head b{color:var(--text);font-size:14px}
+.pend-chips{display:flex;flex-wrap:wrap;gap:8px}
+.pchip{display:flex;align-items:center;gap:6px;max-width:100%;border:1px solid var(--blue);background:var(--card);border-radius:999px;padding:7px 12px;font-size:14px;font-family:inherit;color:var(--text)}
+.pchip .t{color:var(--blue);font-weight:600;font-variant-numeric:tabular-nums}
+.pchip .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pchip.later{border-style:dashed;border-color:var(--line);color:var(--muted)}
+.pchip.later .t{color:var(--muted);font-weight:400}
 .sheet-wrap{position:fixed;inset:0;z-index:20;background:rgba(20,18,16,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fade .2s ease-out}
 .sheet{width:100%;max-width:400px;max-height:85vh;overflow-y:auto;background:var(--card);border-radius:22px;padding:22px 20px 18px;box-shadow:0 20px 50px rgba(0,0,0,.18);animation:pop .26s cubic-bezier(.2,.9,.3,1.25)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -221,12 +225,10 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
   <main>
     <section id="view-form">
       <h2 id="form-title">新增紀錄</h2>
-      <button type="button" class="now-bk hidden" id="now-bk">
-        <span class="now-label" id="now-label">現在</span>
-        <span class="now-time" id="now-time"></span>
-        <span class="now-title" id="now-title"></span>
-        <span class="now-go">帶入 ›</span>
-      </button>
+      <div class="pend hidden" id="pend">
+        <div class="pend-head"><b>今天還沒記帳</b><span>點名字帶入</span></div>
+        <div class="pend-chips" id="pend-chips"></div>
+      </div>
       <div class="editbar hidden" id="editbar">
         <span id="edit-label">正在修改</span>
         <button type="button" class="btn2 small" id="cancel-edit">取消修改</button>
@@ -342,7 +344,7 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:color-mix(in srg
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-11.7';
+const APP_VERSION = '2026-11-11.8';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -555,32 +557,42 @@ async function removeOption(key, v) {
   }
 }
 
-/* ----- 今天最近的一筆預約：點一下帶入姓名 ----- */
-function pickNowBooking() {
-  const list = (state.todayBookings || []).filter(b => !b.recorded);   // 已經記過帳的跳過
-  if (!list.length) return null;
-  const d = new Date();
-  const now = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  // 優先：已經開始、最晚開始的那一筆（通常就是剛做完要記帳的客人）
-  const started = list.filter(b => b.start <= now);
-  if (started.length) return { b: started[started.length - 1], label: '現在' };
-  return { b: list[0], label: '下一位' };
+/* ----- 今天還沒記帳的預約：點一下帶入姓名 ----- */
+// 點過、而且存檔成功的預約記在手機上，就算存檔時改了名字也不會再出現
+function doneKey(b) { return todayStr() + '|' + b.start + '|' + b.title; }
+function getDone() { try { return JSON.parse(store.get('luff_done') || '{}'); } catch (e) { return {}; } }
+function markDone(key) {
+  const today = todayStr();
+  const done = getDone();
+  Object.keys(done).forEach(k => { if (k.slice(0, 10) !== today) delete done[k]; });   // 只留今天的
+  done[key] = 1;
+  store.set('luff_done', JSON.stringify(done));
 }
 function renderNowBooking() {
-  const box = $('now-bk');
-  const pick = state.editingId ? null : pickNowBooking();
-  if (!pick) { box.classList.add('hidden'); return; }
-  $('now-time').textContent = pick.b.start;
-  $('now-label').textContent = pick.label;
-  $('now-title').textContent = pick.b.title;
-  box.onclick = () => {
-    $('name').value = pick.b.name;
-    renderSuggest();
-    toast('已帶入「' + pick.b.name + '」');
-  };
+  const box = $('pend');
+  const done = getDone();
+  const list = state.editingId ? [] :
+    (state.todayBookings || []).filter(b => !b.recorded && !done[doneKey(b)]);
+  if (!list.length) { box.classList.add('hidden'); return; }
+  const d = new Date();
+  const now = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  $('pend-chips').innerHTML = list.map((b, i) => {
+    const later = b.start > now;
+    return `<button type="button" class="pchip${later ? ' later' : ''}" data-i="${i}">` +
+      `<span class="t">${esc(b.start)}</span><span class="n">${esc(b.title)}${later ? '・稍後' : ''}</span></button>`;
+  }).join('');
+  $('pend-chips').querySelectorAll('.pchip').forEach(btn => {
+    btn.onclick = () => {
+      const b = list[btn.dataset.i];
+      $('name').value = b.name;
+      state.pendingKey = doneKey(b);
+      renderSuggest();
+      toast('已帶入「' + b.name + '」');
+    };
+  });
   box.classList.remove('hidden');
 }
-setInterval(renderNowBooking, 60000);   // 每分鐘看一下，時間到了自動換下一位
+setInterval(renderNowBooking, 60000);   // 每分鐘更新「稍後」的狀態
 
 /* ----- 色號快速輸入 ----- */
 const CODE_SEP = /[,，、\/／;；+\s]/;
@@ -750,7 +762,7 @@ function renderSuggest() {
     b.onclick = () => { $('name').value = m[b.dataset.i].name; box.innerHTML = ''; };
   });
 }
-$('name').addEventListener('input', renderSuggest);
+$('name').addEventListener('input', () => { state.pendingKey = null; renderSuggest(); });
 
 /* ----- 最近紀錄 ----- */
 function renderRecent() {
@@ -820,7 +832,7 @@ function splitList(s) {
 }
 function startEdit(r) {
   if (!r) return;
-  $('now-bk').classList.add('hidden');
+  $('pend').classList.add('hidden');
   state.editingId = r.id;
   $('date').value = r.date;
   $('name').value = r.name;
@@ -1031,6 +1043,7 @@ $('cf-ok').onclick = async () => {
   ok.textContent = editing ? '更新中…' : '儲存中…';
   try {
     const d = editing ? await api('update', { id: editing, record: rec }) : await api('save', { record: rec });
+    if (!editing && state.pendingKey) { markDone(state.pendingKey); state.pendingKey = null; }
     store.set('luff_cache', JSON.stringify(d));
     applyData(d);
     closeConfirm();
