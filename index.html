@@ -530,7 +530,7 @@ body.typing nav,body.typing #nav-floor{display:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-14.6';
+const APP_VERSION = '2026-11-14.7';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -765,6 +765,9 @@ function openMore(key) {
 }
 function closeMore(key) {
   const box = $('more-' + key);
+  // 先讓搜尋框失去焦點（收鍵盤），再移除；直接移除時 iPhone 不會通知，標籤列會一直藏著
+  if (box.contains(document.activeElement)) document.activeElement.blur();
+  document.body.classList.remove('typing');
   box.classList.add('hidden');
   box.innerHTML = '';
 }
@@ -1581,6 +1584,22 @@ document.addEventListener('focusin', e => { if (isTypingField(e.target)) documen
 document.addEventListener('focusout', () => setTimeout(() => {
   if (!isTypingField(document.activeElement)) document.body.classList.remove('typing');
 }, 120));
+// iPhone 有時鍵盤收起來了卻沒通知，所以再用「畫面高度有沒有被鍵盤吃掉」確認一次
+let fullVH = 0;
+function checkKeyboard() {
+  const h = window.visualViewport ? window.visualViewport.height : innerHeight;
+  fullVH = Math.max(fullVH, h);
+  const kbOpen = h < fullVH - 150;
+  if (!kbOpen && !isTypingField(document.activeElement)) document.body.classList.remove('typing');
+  if (!kbOpen && fullVH - h < 50) setTimeout(() => {
+    // 鍵盤已收起：就算游標還留在輸入框，也把標籤列放回來
+    const h2 = window.visualViewport ? window.visualViewport.height : innerHeight;
+    if (h2 >= fullVH - 50) document.body.classList.remove('typing');
+  }, 200);
+  if (kbOpen) document.body.classList.add('typing');
+}
+if (window.visualViewport) window.visualViewport.addEventListener('resize', checkKeyboard);
+window.addEventListener('orientationchange', () => { fullVH = 0; setTimeout(checkKeyboard, 400); });
 function placeNavIndicator() {
   const nav = document.querySelector('nav'), floor = $('nav-floor');
   if (nav && floor && nav.offsetHeight) floor.style.height = Math.max(0, innerHeight - nav.getBoundingClientRect().top) + 'px';
