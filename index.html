@@ -348,22 +348,26 @@ main section:not(.hidden){animation:none}
 .more-list:empty{display:none}
 .more-list .code{background:var(--card);border:0;font-size:14px;padding:8px 13px;border-radius:999px}
 .more-list .code.new{background:transparent;border:1.5px dashed #e5804a;color:#c4622d;font-weight:600}
-.chip.on.long{grid-column:span 2;font-size:14px;letter-spacing:0}
+
 .more .hint{font-size:12px;color:var(--muted);margin-top:8px}
 /* ----- 選項全部置中：每排置中、打勾不推擠文字 ----- */
 .chips{display:flex;flex-wrap:wrap;justify-content:center;gap:7px}
 .chips .chip{flex:0 0 calc((100% - 21px) / 4);min-width:0;box-sizing:border-box;position:relative;padding-left:3px;padding-right:3px;text-align:center}
-.chips .chip.on.long{flex-basis:calc((100% - 21px) / 2 + 7px)}
+.chips .chip.on.long{padding-left:3px}
+.chips .chip.on.long::before{display:none}   /* 長名稱選了不顯示小勾，維持一格寬 */
 .chip.on{padding-left:3px}
 .chip.on::before{position:absolute;left:6px;top:50%;width:15px;height:15px;margin:-7.5px 0 0;font-size:9px}
 .chip.add{display:flex;align-items:center;justify-content:center}
 @media (max-width:360px){.chips .chip.on:not(.long)::before{display:none}}
-.codes,.more-list{justify-content:center}
+.codes{justify-content:center}
+.more-list{justify-content:flex-start}
 .pend-chips{justify-content:flex-start}
 .area-sug .code.cur{background:var(--blue-grad);color:#fff}
 body.typing nav,body.typing #nav-floor{display:none}
-.codes .hint,.more .hint{text-align:center}
-.more input,#area{text-align:center}
+.codes .hint{text-align:center}
+.more .hint{text-align:left}
+#area{text-align:center}
+.more input{text-align:left}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (prefers-color-scheme:dark){.stat.dark{background:linear-gradient(135deg,#3a5fc4,#24409a)}.stat.dark .lbl{color:#c7d3f5}}
 </style>
@@ -530,7 +534,7 @@ body.typing nav,body.typing #nav-floor{display:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-14.7';
+const APP_VERSION = '2026-11-14.8';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -742,14 +746,6 @@ function visibleList(key) {
     while (i >= 0 && sel.has(list[i])) i--;
     if (i >= 0) list.splice(i, 1);
     list.push(v);
-  }
-  // 選了的長名稱會佔兩格，再拿掉最後面沒選的，維持兩排
-  const slots = () => list.reduce((n, v) => n + (sel.has(v) && labelWidth(v) > 6 ? 2 : 1), 0);
-  while (slots() > TOP_N) {
-    let i = list.length - 1;
-    while (i >= 0 && sel.has(list[i])) i--;
-    if (i < 0) break;
-    list.splice(i, 1);
   }
   return list;
 }
