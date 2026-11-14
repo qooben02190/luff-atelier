@@ -350,6 +350,17 @@ main section:not(.hidden){animation:none}
 .more-list .code.new{background:transparent;border:1.5px dashed #e5804a;color:#c4622d;font-weight:600}
 .chip.on.long{grid-column:span 2;font-size:14px;letter-spacing:0}
 .more .hint{font-size:12px;color:var(--muted);margin-top:8px}
+/* ----- 選項全部置中：每排置中、打勾不推擠文字 ----- */
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:7px}
+.chips .chip{flex:0 0 calc((100% - 21px) / 4);min-width:0;box-sizing:border-box;position:relative;padding-left:3px;padding-right:3px;text-align:center}
+.chips .chip.on.long{flex-basis:calc((100% - 21px) / 2 + 7px)}
+.chip.on{padding-left:3px}
+.chip.on::before{position:absolute;left:6px;top:50%;width:15px;height:15px;margin:-7.5px 0 0;font-size:9px}
+.chip.add{display:flex;align-items:center;justify-content:center}
+@media (max-width:360px){.chips .chip.on:not(.long)::before{display:none}}
+.codes,.more-list,.pend-chips{justify-content:center}
+.codes .hint,.more .hint{text-align:center}
+.more input,#area{text-align:center}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (prefers-color-scheme:dark){.stat.dark{background:linear-gradient(135deg,#3a5fc4,#24409a)}.stat.dark .lbl{color:#c7d3f5}}
 </style>
@@ -516,7 +527,7 @@ main section:not(.hidden){animation:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-14.3';
+const APP_VERSION = '2026-11-14.4';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
