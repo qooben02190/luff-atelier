@@ -335,6 +335,21 @@ main section:not(.hidden){animation:none}
 .clear-btn.off{opacity:0;pointer-events:none}
 /* 底部標籤列當作畫面的底：內容捲到這裡就被蓋住 */
 #nav-floor{position:fixed;left:0;right:0;bottom:0;height:calc(env(safe-area-inset-bottom) + 80px);background:var(--bg);z-index:5;pointer-events:none}
+.name-row{display:flex;gap:10px;align-items:flex-end}
+.name-row .grow{flex:1;min-width:0}
+.name-row .area{flex:none;width:96px}
+.name-row .field{margin-bottom:0}
+.area-sug{margin:10px 0 0}
+.area-sug .code{background:var(--blue-soft);font-size:14px;padding:7px 12px}
+.cus-area{display:inline-block;font-size:12px;font-weight:600;color:#2a5bd7;background:var(--blue-soft);border-radius:999px;padding:3px 10px;margin-left:8px;vertical-align:middle}
+.more{margin-top:10px;background:var(--card-in,#fff);border-radius:18px;padding:10px;animation:sugIn .25s cubic-bezier(.2,.9,.3,1.1) both}
+.more input{width:100%;box-sizing:border-box}
+.more-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.more-list:empty{display:none}
+.more-list .code{background:var(--card);border:0;font-size:14px;padding:8px 13px;border-radius:999px}
+.more-list .code.new{background:transparent;border:1.5px dashed #e5804a;color:#c4622d;font-weight:600}
+.chip.on.long{grid-column:span 2;font-size:14px;letter-spacing:0}
+.more .hint{font-size:12px;color:var(--muted);margin-top:8px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (prefers-color-scheme:dark){.stat.dark{background:linear-gradient(135deg,#3a5fc4,#24409a)}.stat.dark .lbl{color:#c7d3f5}}
 </style>
@@ -383,19 +398,26 @@ main section:not(.hidden){animation:none}
       </div>
       <div class="card">
         <div class="field"><label class="lbl" for="date">日期</label><input type="date" id="date"></div>
-        <div class="field">
-          <label class="lbl" for="name">客人姓名 *</label>
-          <input id="name" autocomplete="off" placeholder="輸入姓名可找舊客">
-          <div id="suggest" class="suggest"></div>
+        <div class="name-row">
+          <div class="field grow">
+            <label class="lbl" for="name">客人姓名 *</label>
+            <input id="name" autocomplete="off" placeholder="輸入姓名可找舊客">
+          </div>
+          <div class="field area">
+            <label class="lbl" for="area">地區</label>
+            <input id="area" autocomplete="off" placeholder="選填" maxlength="10">
+          </div>
         </div>
+        <div class="codes area-sug" id="area-sug"></div>
+        <div id="suggest" class="suggest"></div>
       </div>
       <div class="card">
-        <div class="field"><span class="lbl">項目 *（可複選，長按可刪除）</span><div class="chips" id="chips-items">載入中…</div></div>
-        <div class="field"><span class="lbl">款式（可複選，長按可刪除）</span><div class="chips" id="chips-styles"></div></div>
+        <div class="field"><span class="lbl">項目 *（可複選，長按可刪除）</span><div class="chips" id="chips-items">載入中…</div><div class="more hidden" id="more-items"></div></div>
+        <div class="field"><span class="lbl">款式（可複選，長按可刪除）</span><div class="chips" id="chips-styles"></div><div class="more hidden" id="more-styles"></div></div>
       </div>
       <div class="card">
         <div class="field"><label class="lbl" for="amount">金額 *</label><input type="number" id="amount" inputmode="numeric" min="0" placeholder="0"></div>
-        <div class="field"><span class="lbl">付款方式 *</span><div class="chips" id="chips-payment"></div></div>
+        <div class="field"><span class="lbl">付款方式 *</span><div class="chips" id="chips-payment"></div><div class="more hidden" id="more-payment"></div></div>
         <div class="field">
           <label class="lbl" for="note">備註（打色號開頭會跳出建議）</label>
           <div class="codes" id="codes"></div>
@@ -494,7 +516,7 @@ main section:not(.hidden){animation:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-12.6';
+const APP_VERSION = '2026-11-14.3';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -633,13 +655,15 @@ function applyData(d) {
 function renderChips(key) {
   const box = $('chips-' + key);
   const sel = state.sel[key];
-  const base = sortByUsage(TYPES[key], state.options[TYPES[key]] || []);
-  // 修改舊紀錄時，已選但不在選單裡的值（例如舊的「手卸光」）也要顯示出來
+  const all = sortByUsage(TYPES[key], state.options[TYPES[key]] || []);
+  // 項目、款式只顯示最常用的 8 個，其他的從「＋ 其他」搜尋
+  const base = MULTI[key] ? all.slice(0, TOP_N) : all;
+  // 已選但沒顯示的（從「其他」選的、或修改舊紀錄時的舊名稱）也要顯示出來
   const list = base.concat([...sel].filter(v => base.indexOf(v) === -1));
   box.innerHTML = list.map(v =>
     `<button type="button" class="chip${sel.has(v) ? ' on' : ''}${labelWidth(v) > 6 ? ' long' : ''}" data-v="${esc(v)}">${esc(v)}</button>`
-  ).join('') + '<button type="button" class="chip add">＋ 新增</button>';
-  box.querySelector('.chip.add').onclick = () => addOption(key);
+  ).join('') + '<button type="button" class="chip add">＋ 其他</button>';
+  box.querySelector('.chip.add').onclick = () => openMore(key);
   box.querySelectorAll('.chip:not(.add)').forEach(b => {
     // 短按 = 選取；長按 0.6 秒 = 刪除選項
     let timer = null, longPressed = false;
@@ -694,8 +718,49 @@ function toggle(key, v) {
   const n = $('chips-' + key).querySelector('.chip[data-v="' + CSS.escape(v) + '"]');
   if (n) n.classList.add('pop');   // 點下去彈一下
 }
-async function addOption(key) {
-  const v = (prompt('新增' + TYPES[key]) || '').trim();
+/* ----- 其他項目／款式：打字找，找不到就直接新增 ----- */
+const TOP_N = 8;
+function openMore(key) {
+  const box = $('more-' + key);
+  if (!box.classList.contains('hidden')) { closeMore(key); return; }
+  box.innerHTML = `<input type="text" autocomplete="off" placeholder="搜尋或新增${TYPES[key]}"><div class="more-list"></div>`;
+  box.classList.remove('hidden');
+  const inp = box.querySelector('input');
+  inp.oninput = () => renderMore(key);
+  renderMore(key);
+  inp.focus();
+}
+function closeMore(key) {
+  const box = $('more-' + key);
+  box.classList.add('hidden');
+  box.innerHTML = '';
+}
+function renderMore(key) {
+  const box = $('more-' + key);
+  const q = box.querySelector('input').value.trim();
+  const all = sortByUsage(TYPES[key], state.options[TYPES[key]] || []);
+  const shown = new Set((MULTI[key] ? all.slice(0, TOP_N) : all).concat([...state.sel[key]]));
+  const low = q.toLowerCase();
+  const list = all.filter(v => !shown.has(v) && (!q || v.toLowerCase().includes(low)));
+  const exact = all.some(v => v.toLowerCase() === low);
+  let html = list.map(v => `<button type="button" class="code" data-v="${esc(v)}">${esc(v)}</button>`).join('');
+  if (q && !exact) html += `<button type="button" class="code new" data-new="1">＋ 新增「${esc(q)}」</button>`;
+  const listBox = box.querySelector('.more-list');
+  listBox.innerHTML = html;
+  const old = box.querySelector('.hint'); if (old) old.remove();
+  if (!html) box.insertAdjacentHTML('beforeend', `<div class="hint">${q ? '已經在上面了' : '常用的都在上面了，打字可以新增'}</div>`);
+  listBox.querySelectorAll('.code').forEach(b => {
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.onclick = () => {
+      if (b.dataset.new) { closeMore(key); addOption(key, q); return; }
+      closeMore(key);
+      toggle(key, b.dataset.v);
+      updateClearBtn();
+    };
+  });
+}
+async function addOption(key, preset) {
+  const v = (preset != null ? String(preset) : (prompt('新增' + TYPES[key]) || '')).trim();
   if (!v) return;
   try {
     state.options = (await api('addOption', { type: TYPES[key], value: v })).options;
@@ -749,6 +814,7 @@ function renderNowBooking() {
       $('name').value = b.name;
       state.pendingKey = doneKey(b);
       renderSuggest();
+      fillAreaFromName();
       toast('已帶入「' + b.name + '」');
     };
   });
@@ -815,7 +881,7 @@ function renderCusResults() {
   if (!m.length) { box.innerHTML = '<div class="empty">找不到符合的客人</div>'; return; }
   box.innerHTML = m.map((c, i) =>
     `<button type="button" class="cus-row" data-i="${i}"><span>${esc(c.name)}</span>` +
-    `<small>來店 ${c.count} 次 · 最近 ${esc(c.last)}</small></button>`).join('');
+    `<small>${c.area ? esc(c.area) + " · " : ""}來店 ${c.count} 次 · 最近 ${esc(c.last)}</small></button>`).join('');
   box.querySelectorAll('.cus-row').forEach(b => { b.onclick = () => openCustomer(m[b.dataset.i].name); });
 }
 $('cus-q').addEventListener('input', renderCusResults);
@@ -882,7 +948,7 @@ function renderCustomer(c, showAll) {
   box.innerHTML = `
     <button type="button" class="back" id="cus-back">‹ 返回搜尋</button>
     <div class="card">
-      <div class="cus-head"><div class="cus-name">${esc(c.name)}</div><button type="button" class="btn2 small" id="cus-rename">改名字</button></div>
+      <div class="cus-head"><div class="cus-name">${esc(c.name)}${c.area ? `<span class="cus-area">${esc(c.area)}</span>` : ''}</div><button type="button" class="btn2 small" id="cus-rename">改名字</button></div>
       <div class="cus-grid">
         <div><span>來店次數</span><b>${c.count} 次</b></div>
         <div><span>平均多久來一次</span><b>${c.interval ? '約 ' + c.interval + ' 天' : '—'}</b></div>
@@ -918,13 +984,48 @@ function renderSuggest() {
     .slice(0, 5);
   box.innerHTML = m.map((c, i) =>
     `<button type="button" class="sug" data-i="${i}">${esc(c.name)}<br>` +
-    `<small>來店 ${c.count} 次 · 最近 ${esc(c.last)} · 累計 $${c.total.toLocaleString()}</small></button>`
+    `<small>${c.area ? esc(c.area) + ' · ' : ''}來店 ${c.count} 次 · 最近 ${esc(c.last)} · 累計 $${c.total.toLocaleString()}</small></button>`
   ).join('');
   box.querySelectorAll('.sug').forEach(b => {
-    b.onclick = () => { $('name').value = m[b.dataset.i].name; box.innerHTML = ''; };
+    b.onclick = () => { $('name').value = m[b.dataset.i].name; box.innerHTML = ''; fillAreaFromName(); };
   });
 }
-$('name').addEventListener('input', () => { state.pendingKey = null; renderSuggest(); });
+$('name').addEventListener('input', () => { state.pendingKey = null; renderSuggest(); fillAreaFromName(); });
+
+/* ----- 地區：台北行政區，用過的排前面；舊客自動帶入上次的地區 ----- */
+const TAIPEI_AREAS = ['大安', '信義', '中山', '松山', '中正', '大同', '萬華', '文山', '南港', '內湖', '士林', '北投'];
+function cleanArea(v) {
+  let s = String(v || '').trim().replace(/\s+/g, '').slice(0, 10);
+  if (s.length > 2 && /區$/.test(s)) s = s.slice(0, -1);
+  return s;
+}
+function areaList() {
+  const cnt = {};
+  state.customers.forEach(c => { if (c.area) cnt[c.area] = (cnt[c.area] || 0) + 1; });
+  const all = [...new Set(TAIPEI_AREAS.concat(Object.keys(cnt)))];
+  return all.sort((a, b) => (cnt[b] || 0) - (cnt[a] || 0) || TAIPEI_AREAS.indexOf(a) - TAIPEI_AREAS.indexOf(b));
+}
+function renderAreaSug() {
+  const box = $('area-sug');
+  if (document.activeElement !== $('area')) { box.innerHTML = ''; return; }
+  const q = cleanArea($('area').value);
+  const list = areaList().filter(a => !q || (a.includes(q) && a !== q)).slice(0, 12);
+  box.innerHTML = list.map(a => `<button type="button" class="code" data-a="${esc(a)}">${esc(a)}</button>`).join('');
+  box.querySelectorAll('.code').forEach(b => {
+    b.addEventListener('mousedown', e => e.preventDefault());   // 不讓輸入框失去焦點
+    b.onclick = () => { $('area').value = b.dataset.a; $('area').dataset.auto = ''; $('area').blur(); box.innerHTML = ''; updateClearBtn(); };
+  });
+}
+function fillAreaFromName() {
+  const el = $('area');
+  if (el.value && !el.dataset.auto) return;          // 自己填的不蓋掉
+  const c = state.customers.find(x => x.name === $('name').value.trim());
+  el.value = c && c.area ? c.area : '';
+  el.dataset.auto = el.value ? '1' : '';
+}
+$('area').addEventListener('focus', renderAreaSug);
+$('area').addEventListener('input', () => { $('area').dataset.auto = ''; renderAreaSug(); });
+$('area').addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== $('area')) $('area-sug').innerHTML = ''; }, 250));
 
 /* ----- 最近紀錄 ----- */
 function renderRecent() {
@@ -1001,6 +1102,7 @@ function startEdit(r) {
   $('name').value = r.name;
   $('amount').value = r.amount;
   $('note').value = r.note;
+  $('area').value = r.area || ''; $('area').dataset.auto = '';
   state.sel.items = new Set(splitList(r.items));
   state.sel.styles = new Set(splitList(r.styles));
   state.sel.payment = new Set(r.payment ? [r.payment] : []);
@@ -1196,7 +1298,8 @@ $('submit').onclick = () => {
     styles: [...state.sel.styles],
     amount: $('amount').value,
     payment: [...state.sel.payment][0] || '',
-    note: $('note').value.trim()
+    note: $('note').value.trim(),
+    area: cleanArea($('area').value)
   };
   if (!rec.date) return toast('請選日期');
   if (!rec.name) return toast('請填客人姓名');
@@ -1248,6 +1351,7 @@ function openConfirm(rec) {
     nameNotice(rec) +
     row('日期', esc(rec.date)) +
     row('客人', esc(rec.name)) +
+    (rec.area ? row('地區', esc(rec.area)) : '') +
     row('項目', esc(rec.items.join('、'))) +
     (rec.styles.length ? row('款式', esc(rec.styles.join('、'))) : '') +
     row('金額', '<strong>$' + Number(rec.amount).toLocaleString() + '</strong>') +
@@ -1257,7 +1361,10 @@ function openConfirm(rec) {
   $('cf-body').querySelectorAll('.name-pick').forEach(b => {
     b.onclick = () => {
       if (b.classList.contains('keep')) { state.keepName = rec.name; }
-      else { rec.name = b.dataset.n; $('name').value = rec.name; }
+      else {
+        rec.name = b.dataset.n; $('name').value = rec.name;
+        fillAreaFromName(); rec.area = cleanArea($('area').value);
+      }
       openConfirm(rec);   // 重新顯示確認內容
     };
   });
@@ -1307,7 +1414,7 @@ function withQueue(d) {
   const have = new Set((d.recent || []).map(r => r.id));
   const extra = q.filter(x => !have.has(x.rec.cid)).map(x => ({
     id: x.rec.cid, date: x.rec.date, name: x.rec.name, items: x.rec.items.join('、'), styles: x.rec.styles.join('、'),
-    amount: Number(x.rec.amount), payment: x.rec.payment, note: x.rec.note, pending: true
+    amount: Number(x.rec.amount), payment: x.rec.payment, note: x.rec.note, area: x.rec.area || '', pending: true
   }));
   const monthly = Object.assign({}, d.monthly);
   extra.forEach(r => {
@@ -1407,7 +1514,9 @@ $('cf-ok').onclick = async () => {
 };
 
 function resetForm() {
-  ['name', 'amount', 'note'].forEach(id => $(id).value = '');
+  ['name', 'amount', 'note', 'area'].forEach(id => $(id).value = '');
+  ['items', 'styles', 'payment'].forEach(closeMore);
+  $('area').dataset.auto = '';
   state.pendingKey = null;
   setTimeout(updateClearBtn, 0);
   Object.values(state.sel).forEach(s => s.clear());
@@ -1478,12 +1587,12 @@ document.addEventListener('visibilitychange', () => {
 /* ----- 自動檢查新版本 ----- */
 /* ----- 清除：按一下清空（日期保留），4 秒內點提示可以復原 ----- */
 function updateClearBtn() {
-  const has = !!($('name').value || $('amount').value || $('note').value || Object.values(state.sel).some(s => s.size));
+  const has = !!($('name').value || $('amount').value || $('note').value || $('area').value || Object.values(state.sel).some(s => s.size));
   $('clear-form').classList.toggle('off', !has);
 }
 $('clear-form').onclick = () => {
   const snap = {
-    name: $('name').value, amount: $('amount').value, note: $('note').value,
+    name: $('name').value, amount: $('amount').value, note: $('note').value, area: $('area').value,
     sel: Object.fromEntries(Object.entries(state.sel).map(([k, s]) => [k, [...s]])), pendingKey: state.pendingKey
   };
   $('view-form').classList.add('clearing');
@@ -1491,7 +1600,7 @@ $('clear-form').onclick = () => {
     resetForm();
     $('view-form').classList.remove('clearing');
     toast('已清除・點這裡復原', () => {
-      $('name').value = snap.name; $('amount').value = snap.amount; $('note').value = snap.note;
+      $('name').value = snap.name; $('amount').value = snap.amount; $('note').value = snap.note; $('area').value = snap.area;
       Object.entries(snap.sel).forEach(([k, arr]) => { state.sel[k].clear(); arr.forEach(v => state.sel[k].add(v)); });
       state.pendingKey = snap.pendingKey;
       Object.keys(TYPES).forEach(renderChips);
