@@ -358,7 +358,10 @@ main section:not(.hidden){animation:none}
 .chip.on::before{position:absolute;left:6px;top:50%;width:15px;height:15px;margin:-7.5px 0 0;font-size:9px}
 .chip.add{display:flex;align-items:center;justify-content:center}
 @media (max-width:360px){.chips .chip.on:not(.long)::before{display:none}}
-.codes,.more-list,.pend-chips{justify-content:center}
+.codes,.more-list{justify-content:center}
+.pend-chips{justify-content:flex-start}
+.area-sug .code.cur{background:var(--blue-grad);color:#fff}
+body.typing nav,body.typing #nav-floor{display:none}
 .codes .hint,.more .hint{text-align:center}
 .more input,#area{text-align:center}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -527,7 +530,7 @@ main section:not(.hidden){animation:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-14.5';
+const APP_VERSION = '2026-11-14.6';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -1038,9 +1041,11 @@ function areaList() {
 function renderAreaSug() {
   const box = $('area-sug');
   if (document.activeElement !== $('area')) { box.innerHTML = ''; return; }
-  const q = cleanArea($('area').value);
-  const list = areaList().filter(a => !q || (a.includes(q) && a !== q)).slice(0, 12);
-  box.innerHTML = list.map(a => `<button type="button" class="code" data-a="${esc(a)}">${esc(a)}</button>`).join('');
+  const cur = cleanArea($('area').value);
+  // 剛點進來：顯示全部，方便直接換；開始打字後才篩選
+  const q = areaTyping ? cur : '';
+  const list = areaList().filter(a => !q || a.includes(q)).slice(0, 12);
+  box.innerHTML = list.map(a => `<button type="button" class="code${a === cur ? ' cur' : ''}" data-a="${esc(a)}">${esc(a)}</button>`).join('');
   box.querySelectorAll('.code').forEach(b => {
     b.addEventListener('mousedown', e => e.preventDefault());   // 不讓輸入框失去焦點
     b.onclick = () => { $('area').value = b.dataset.a; $('area').dataset.auto = ''; $('area').blur(); box.innerHTML = ''; updateClearBtn(); };
@@ -1053,8 +1058,19 @@ function fillAreaFromName() {
   el.value = c && c.area ? c.area : '';
   el.dataset.auto = el.value ? '1' : '';
 }
-$('area').addEventListener('focus', renderAreaSug);
-$('area').addEventListener('input', () => { $('area').dataset.auto = ''; renderAreaSug(); });
+let areaTyping = false;
+$('area').addEventListener('focus', () => {
+  areaTyping = false;
+  renderAreaSug();
+  // 原本的字先全選，直接打字就會蓋掉
+  selectArea();
+  areaJustFocused = true;
+});
+// 點下去時游標會被放到點的位置，所以點完再全選一次
+let areaJustFocused = false;
+function selectArea() { setTimeout(() => { try { $('area').setSelectionRange(0, $('area').value.length); } catch (e) {} }, 0); }
+$('area').addEventListener('click', () => { if (areaJustFocused) { areaJustFocused = false; selectArea(); } });
+$('area').addEventListener('input', () => { areaTyping = true; $('area').dataset.auto = ''; renderAreaSug(); });
 $('area').addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== $('area')) $('area-sug').innerHTML = ''; }, 250));
 
 /* ----- 最近紀錄 ----- */
@@ -1557,6 +1573,14 @@ function resetForm() {
 }
 
 /* ----- 分頁 ----- */
+/* 打字時（鍵盤出現）先藏起底部標籤列，免得被 iPhone 頂到鍵盤上面 */
+function isTypingField(el) {
+  return el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !['button', 'checkbox', 'radio'].includes(el.type)));
+}
+document.addEventListener('focusin', e => { if (isTypingField(e.target)) document.body.classList.add('typing'); });
+document.addEventListener('focusout', () => setTimeout(() => {
+  if (!isTypingField(document.activeElement)) document.body.classList.remove('typing');
+}, 120));
 function placeNavIndicator() {
   const nav = document.querySelector('nav'), floor = $('nav-floor');
   if (nav && floor && nav.offsetHeight) floor.style.height = Math.max(0, innerHeight - nav.getBoundingClientRect().top) + 'px';
