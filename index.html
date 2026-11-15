@@ -368,6 +368,26 @@ body.typing nav,body.typing #nav-floor{display:none}
 .more .hint{text-align:left}
 #area{text-align:center}
 .more input{text-align:left}
+/* ----- 下個月預約卡片 ----- */
+#next-book .nb-head{display:flex;justify-content:space-between;align-items:center}
+#next-book .nb-head small{font-size:12px;color:var(--muted)}
+#next-book .nb-main{display:flex;align-items:flex-end;justify-content:space-between;margin-top:6px}
+#next-book .nb-count{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+#next-book .nb-count span{font-size:16px;font-weight:600;margin-left:4px}
+#next-book .nb-money{text-align:right}
+#next-book .nb-money small{display:block;font-size:12px;color:var(--muted)}
+#next-book .nb-money b{font-size:24px;font-weight:800;color:var(--blue)}
+#next-book .nb-how{font-size:12px;color:var(--muted);margin-top:4px}
+#next-book .nb-toggle{display:block;width:100%;margin-top:12px;border:0;font:inherit;font-size:13px;font-weight:600;color:var(--blue);background:var(--bg);border-radius:999px;padding:9px}
+#next-book .nb-list{margin-top:12px;font-size:14px}
+#next-book .nb-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+#next-book .nb-row .d{width:44px;font-weight:700}
+#next-book .nb-row .w{width:30px;font-size:12px;color:var(--muted)}
+#next-book .nb-row .t{width:44px;font-size:13px;color:var(--muted)}
+#next-book .nb-row .n{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#next-book .nb-row .n.unknown{font-weight:500;color:var(--muted)}
+#next-book .nb-row .l{font-size:12px;color:var(--muted);white-space:nowrap}
+#next-book .nb-empty{font-size:13px;color:var(--muted);margin-top:8px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (prefers-color-scheme:dark){.stat.dark{background:linear-gradient(135deg,#3a5fc4,#24409a)}.stat.dark .lbl{color:#c7d3f5}}
 </style>
@@ -486,6 +506,7 @@ body.typing nav,body.typing #nav-floor{display:none}
         <div class="card stat"><div class="lbl">客單價平均</div><div class="big" id="st-avg">$0</div></div>
       </div>
       <div class="card hidden" id="targets"></div>
+      <div class="card hidden" id="next-book"></div>
       <button class="logout" id="logout">登出這支手機</button>
     </section>
   </main>
@@ -534,7 +555,7 @@ body.typing nav,body.typing #nav-floor{display:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-14.8';
+const APP_VERSION = '2026-11-16.1';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -659,6 +680,7 @@ function applyData(d) {
   state.recent = d.recent || [];
   state.monthly = d.monthly || {};
   state.targets = d.targets || { list: [], booked: 0 };
+  state.nextMonth = d.nextMonth || null;
   state.today = todayStr();
   if (!state.month) state.month = state.today.slice(0, 7);
   if (!$('date').value) $('date').value = state.today;
@@ -1243,6 +1265,7 @@ function renderStats() {
   rollNumber($('st-count'), s.count, '');
   rollNumber($('st-avg'), avg, '$');
   renderTargets(s);
+  renderNextBook();
 }
 function daysLeft(ym) {
   const [y, m] = ym.split('-').map(Number);
@@ -1253,6 +1276,38 @@ function daysLeft(ym) {
   if (today > last) return 0;
   if (today < first) return last.getDate();
   return last.getDate() - td;   // 跟儀表板算法一樣，不含今天
+}
+/* ----- 下個月預約：人數 × 最近 3 個月客單價，點開看名單 ----- */
+let nextBookOpen = false;
+function renderNextBook() {
+  const box = $('next-book');
+  const nb = state.nextMonth;
+  if (!nb || (!nb.ok && !nb.error)) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const m = Number(nb.month.slice(5));
+  if (!nb.ok) {
+    box.innerHTML = `<div class="nb-head"><span class="lbl">${m} 月預約</span></div><div class="nb-empty">讀不到日曆，請稍後按右上角重新整理</div>`;
+    return;
+  }
+  const money = nb.count * nb.avg;
+  const W = '日一二三四五六';
+  const md = s => Number(s.slice(5, 7)) + '/' + Number(s.slice(8, 10));
+  const rows = nb.list.map(b => {
+    const wd = '週' + W[new Date(b.date + 'T00:00:00').getDay()];
+    return `<div class="nb-row"><span class="d">${md(b.date)}</span><span class="w">${wd}</span><span class="t">${esc(b.time)}</span>` +
+      `<span class="n${b.known ? '' : ' unknown'}">${esc(b.name)}</span>` +
+      (b.last ? `<span class="l">上次 ${md(b.last)}</span>` : '') + '</div>';
+  }).join('');
+  box.innerHTML = `<div class="nb-head"><span class="lbl">${m} 月預約</span><small>依日曆自動計算</small></div>
+    <div class="nb-main"><div class="nb-count">${nb.count}<span>人</span></div>
+      <div class="nb-money"><small>預估金額</small><b>$${money.toLocaleString()}</b></div></div>
+    <div class="nb-how">${nb.count} 人 × 最近 3 個月客單價 $${nb.avg.toLocaleString()}（不含一日課）</div>` +
+    (nb.count
+      ? (nextBookOpen ? `<div class="nb-list">${rows}</div><button type="button" class="nb-toggle" id="nb-toggle">收起 ⌃</button>`
+                      : `<button type="button" class="nb-toggle" id="nb-toggle">看名單 ⌄</button>`)
+      : `<div class="nb-empty">還沒有人預約</div>`);
+  const t = $('nb-toggle');
+  if (t) t.onclick = () => { nextBookOpen = !nextBookOpen; renderNextBook(); };
 }
 function renderTargets(s) {
   const box = $('targets');
