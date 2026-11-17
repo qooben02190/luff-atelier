@@ -388,6 +388,14 @@ body.typing nav,body.typing #nav-floor{display:none}
 #next-book .nb-row .n.unknown{font-weight:500;color:var(--muted)}
 #next-book .nb-row .l{font-size:12px;color:var(--muted);white-space:nowrap}
 #next-book .nb-empty{font-size:13px;color:var(--muted);margin-top:8px}
+/* 預約名字選人：名字和資訊同一排 */
+.bpick{display:flex;flex-direction:column;gap:6px}
+.bpick-q{font-size:13px;font-weight:600;color:#c4622d;margin:2px 2px 2px}
+.sug.one{display:flex;align-items:baseline;gap:10px;padding:10px 12px}
+.sug.one b{font-weight:600;white-space:nowrap}
+.sug.one small{flex:1;min-width:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug.one.new{background:transparent;border-style:dashed}
+.sug.one.new b{font-weight:500;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (prefers-color-scheme:dark){.stat.dark{background:linear-gradient(135deg,#3a5fc4,#24409a)}.stat.dark .lbl{color:#c7d3f5}}
 </style>
@@ -555,7 +563,7 @@ body.typing nav,body.typing #nav-floor{display:none}
 
 <script>
 /* ===== 版本：每次修改都要改這個號碼，App 才會自動更新 ===== */
-const APP_VERSION = '2026-11-16.1';
+const APP_VERSION = '2026-11-18.2';
 
 /* ===== 設定：後端網址（Google Apps Script 的 /exec） ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbz4-ZBe-xScpWE8vLUwiDlgCP8nnq4eaQ_R9haYedfuj-r3UBfizrq6-kBrDv2bTzSkhw/exec';
@@ -867,9 +875,10 @@ function renderNowBooking() {
       const b = list[btn.dataset.i];
       $('name').value = b.name;
       state.pendingKey = doneKey(b);
-      renderSuggest();
       fillAreaFromName();
-      toast('已帶入「' + b.name + '」');
+      // 預約名字對不上唯一一位客人時，請員工選是哪一位；對得上就跟以前一樣
+      if (renderBookingPick(b.name)) toast('請選是哪一位客人');
+      else { renderSuggest(); toast('已帶入「' + b.name + '」'); }
     };
   });
   box.classList.remove('hidden');
@@ -1046,6 +1055,36 @@ function renderSuggest() {
 }
 $('name').addEventListener('input', () => { state.pendingKey = null; renderSuggest(); fillAreaFromName(); });
 
+/* ----- 點預約帶入的名字不完整（例如「巧柔」）：列出可能的客人讓員工選 ----- */
+function renderBookingPick(q) {
+  const box = $('suggest');
+  const name = String(q || '').trim();
+  if (!name) return false;
+  const low = name.toLowerCase();
+  const exact = state.customers.find(c => c.name === name);
+  const others = state.customers.filter(c => c.name !== name && c.name.toLowerCase().includes(low));
+  if (!others.length) return false;                     // 只有她自己或完全沒對到：不用選
+  const opts = (exact ? [exact] : []).concat(others)
+    .sort((a, b) => (b.last || '').localeCompare(a.last || ''))
+    .slice(0, 6);
+  const md = s => s ? Number(s.slice(5, 7)) + '/' + Number(s.slice(8, 10)) : '';
+  box.innerHTML = `<div class="bpick"><div class="bpick-q">預約寫「${esc(name)}」，是哪一位？</div>` +
+    opts.map((c, i) => `<button type="button" class="sug one" data-i="${i}"><b>${esc(c.name)}</b>` +
+      `<small>${[c.area, '來店 ' + c.count + ' 次', c.last ? '最近 ' + md(c.last) : ''].filter(Boolean).join(' · ')}</small></button>`).join('') +
+    (exact ? '' : `<button type="button" class="sug one new" data-new="1"><b>都不是，是新客人「${esc(name)}」</b></button>`) +
+    '</div>';
+  box.querySelectorAll('.sug').forEach(b => {
+    b.onclick = () => {
+      if (b.dataset.new) state.newOk = name;            // 員工確定是新客人，存檔時不再問一次
+      else $('name').value = opts[b.dataset.i].name;
+      box.innerHTML = '';
+      fillAreaFromName();
+      updateClearBtn();
+    };
+  });
+  return true;
+}
+
 /* ----- 地區：台北行政區，用過的排前面；舊客自動帶入上次的地區 ----- */
 const TAIPEI_AREAS = ['大安', '信義', '中山', '松山', '中正', '大同', '萬華', '文山', '南港', '內湖', '士林', '北投'];
 function cleanArea(v) {
@@ -1098,13 +1137,19 @@ $('area').addEventListener('blur', () => setTimeout(() => { if (document.activeE
 function renderRecent() {
   const box = $('recent');
   if (!state.recent.length) { box.innerHTML = '<div class="empty">還沒有紀錄</div>'; return; }
-  box.innerHTML = state.recent.map((r, i) => `
+  // 地區當作「客人」的資料：用這位客人最近一次填的地區，套用到她每一筆紀錄（只是顯示，不改試算表）
+  const areaOf = {};
+  state.customers.forEach(c => { if (c.area) areaOf[c.name] = c.area; });
+  box.innerHTML = state.recent.map((r, i) => {
+    const area = areaOf[r.name] || r.area || '';
+    return `
     <div class="card rec${r.pending ? ' pending' : ''}${i === 0 && state.justAdded ? ' new' : ''}">
-      <div class="top"><span>${esc(r.name)}${r.pending ? '<span class="sync-tag">同步中</span>' : ''}</span><span>$${Number(r.amount || 0).toLocaleString()}</span></div>
+      <div class="top"><span>${esc(r.name)}${area ? `<span class="cus-area">${esc(area)}</span>` : ''}${r.pending ? '<span class="sync-tag">同步中</span>' : ''}</span><span>$${Number(r.amount || 0).toLocaleString()}</span></div>
       <div class="meta">${esc(r.date)} · ${esc(r.payment || '未填付款方式')}</div>
       <div class="meta">${esc([r.items, r.styles].filter(Boolean).join(' ／ '))}</div>
       ${r.note ? `<div class="note">${esc(r.note)}</div>` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
   box.innerHTML = '<p class="rec-hint">長按紀錄可以修改或刪除</p>' + box.innerHTML;
   box.querySelectorAll('.rec').forEach((card, i) => attachLongPress(card, () => openActions(state.recent[i])));
 }
@@ -1433,7 +1478,8 @@ function nameCheck(name) {
   return similar.length ? { type: 'similar', to: similar } : { type: 'new' };
 }
 function nameNotice(rec) {
-  const chk = nameCheck(rec.name);
+  let chk = nameCheck(rec.name);
+  if (chk.type === 'similar' && state.newOk === rec.name.trim()) chk = { type: 'new' };
   if (chk.type === 'ok') return '';
   if (chk.type === 'new') return `<div class="name-note new">「${esc(rec.name)}」是<b>新客人</b>，系統裡還沒有這個名字</div>`;
   const msg = chk.type === 'alias'
@@ -1618,6 +1664,7 @@ function resetForm() {
   ['items', 'styles', 'payment'].forEach(closeMore);
   $('area').dataset.auto = '';
   state.pendingKey = null;
+  state.newOk = null;
   setTimeout(updateClearBtn, 0);
   Object.values(state.sel).forEach(s => s.clear());
   Object.keys(TYPES).forEach(renderChips);
